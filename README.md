@@ -56,3 +56,31 @@ Built with **C++17, JUCE 8.0.15, and CMake**. Build outputs and downloaded tools
 ## Licensing
 
 Grain Field's original code is licensed under the GNU Affero General Public License, version 3 only ([LICENSE](LICENSE)). JUCE is separately dual-licensed under AGPLv3 or its [commercial licence](https://juce.com/get-juce/); a commercial JUCE licence does not override Grain Field's own AGPL terms. Fonts remain under the SIL Open Font License, and bundled sounds retain their separate terms in [Resources/Sounds/CREDITS.txt](Resources/Sounds/CREDITS.txt). Release archives include the project license, font notices, and sound credits. See the [licensing notes](docs/USER_GUIDE.md#11-licence).
+
+## Pre-release status and known limitations
+
+Grain Field **v0.7.0 is an experimental pre-release** intended for evaluation and feedback, not production use. Back up your projects and existing plugin installations before testing.
+
+### What has been verified
+
+- GitHub Actions successfully built and packaged the Audio Unit, VST3, and standalone app.
+- All three bundles report version 0.7.0 and include Apple silicon and Intel executables.
+- The release ZIP passed integrity checks and includes the project license, font notices, and sound credits.
+- Nine local build-tool regression tests passed.
+
+Earlier audio/UI testing recorded **40 audio checks and six synthetic UI checks passing**. These results predate the repository cleanup; those suites were not rerun for the refreshed release.
+
+### Known limitations
+
+- **Signing and notarization:** Developer ID signing and Apple notarization have not been verified. macOS may block downloaded bundles.
+- **DAW compatibility:** Real-world integration with Logic Pro, Ableton Live, and other hosts remains unverified.
+- **Manual testing:** Listening checks, native window interaction, hardware audio routing, and latency remain unverified.
+- **Test coverage:** CI builds and packages the plugin but does not run the Python regression tests or audio/UI functional suites. Synthetic checks do not establish real-world reliability.
+
+### Before installing
+
+Download from the [official release](https://github.com/wallstrom/grain-field/releases/tag/v0.7.0), compare the ZIP's SHA-256 with the release notes, and read the [installation and security guidance](docs/USER_GUIDE.md#10-build-in-the-cloud-instead-optional). A matching checksum confirms file integrity, not software safety.
+
+Do not disable Gatekeeper or lower your Mac's startup security to load the plugin.
+
+Report ordinary bugs through [GitHub Issues](https://github.com/wallstrom/grain-field/issues), including your macOS version, architecture, plugin format, DAW/version, and reproduction steps. Report vulnerabilities privately through the [security reporting channel](https://github.com/wallstrom/grain-field/security/advisories/new).
