@@ -30,7 +30,7 @@ jobs:
           cp -R "build/GrainField_artefacts/Release/Standalone/Grain Field.app" dist/
           cp LICENSE dist/
           mkdir -p dist/Notices/Fonts
-          cp Resources/Fonts/DMMono-OFL.txt Resources/Fonts/InstrumentSerif-OFL.txt dist/Notices/Fonts/
+          cp Resources/Fonts/Silkscreen-OFL.txt Resources/Fonts/VT323-OFL.txt dist/Notices/Fonts/
           cp Resources/Sounds/CREDITS.txt dist/Notices/Sound-Credits.txt
           cd dist && zip -qry "../Grain Field macOS.zip" .
 

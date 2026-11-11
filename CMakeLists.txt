@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.22)
 set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "macOS architectures")
 set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "Minimum macOS version")
 
-project(GrainField VERSION 0.7.1 LANGUAGES C CXX)
+project(GrainField VERSION 0.8.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -53,11 +53,11 @@ set(GF_UI_SOURCES
     Source/UI/Widgets.cpp
     Source/UI/Views.cpp)
 
-# Fonts embedded in the plugin: DM Mono and Instrument Serif (both SIL Open Font License).
+# Fonts embedded in the plugin: VT323 and Silkscreen (both SIL Open Font License).
 juce_add_binary_data(GrainFieldFonts SOURCES
-    Resources/Fonts/DMMono-Regular.ttf
-    Resources/Fonts/DMMono-Medium.ttf
-    Resources/Fonts/InstrumentSerif-Italic.ttf)
+    Resources/Fonts/VT323-Regular.ttf
+    Resources/Fonts/Silkscreen-Regular.ttf
+    Resources/Fonts/Silkscreen-Bold.ttf)
 set_target_properties(GrainFieldFonts PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # The built-in sounds (Ogg Vorbis). Instruments from the Versilian Community Sample Library (CC0).

@@ -30,7 +30,7 @@ public:
     void mouseDoubleClick (const juce::MouseEvent&) override;
     std::pair<juce::String, juce::String> hintAt (juce::Point<int>) override;
 
-    static constexpr float chipH = 28.0f;
+    static constexpr float chipH = 38.0f;
     juce::Rectangle<float> chipRect (int part) const;
     juce::Rectangle<float> addChipRect() const { return addRect; }
 
@@ -79,9 +79,20 @@ public:
     bool staying() const;
     void setStaying (bool on);
 
-    static constexpr float slotY = 24.0f, slotH = 52.0f, gap = 8.0f;
-    // The eight slots share the module's width.
-    float slotW() const { return juce::jlimit (60.0f, 170.0f, ((float) getWidth() - 7.0f * gap) / 8.0f); }
+    // The eight slots fill the bay edge to edge, divided by rules. Above them is a strip where the top border runs,
+    // which holds the chord played on a MIDI keyboard (and keep / let go) when there is one.
+    static constexpr float topPad = 8.0f, gap = 0.0f;
+    float slotW() const { return (float) getWidth() / 8.0f; }
+    juce::Rectangle<float> durationCellsRect (int index) const
+    {
+        const auto r = slotRect (index);
+        return { r.getX() + 7.0f, r.getBottom() - 24.0f, 110.0f, 4.0f };
+    }
+    juce::Rectangle<float> actionRowRect (int index) const
+    {
+        const auto r = slotRect (index);
+        return { r.getX(), r.getBottom() - 14.0f, r.getWidth(), 10.0f };
+    }
 
 private:
     enum { onKey = -2, onStay = -3, onPlayOn = -4, onKeyDown = -5, onKeyUp = -6, onKeep = -7, onLetGo = -8, onNothing = -9, onEditBase = 100, onNowBase = 200, onLoopBase = 300 };
@@ -89,7 +100,7 @@ private:
     // The chord being played on a MIDI keyboard, and where its name, keep and let go sit in the header.
     bool keysLayout (juce::String& name, float& xName, float& xKeep, float& xLetGo) const;
     float keyNameX() const;
-    juce::Rectangle<float> slotRect (int i) const { return { (slotW() + gap) * (float) i, slotY, slotW(), slotH }; }
+    juce::Rectangle<float> slotRect (int i) const { return { std::round (slotW() * (float) i), topPad + 1.0f, std::round (slotW() * (float) (i + 1)) - std::round (slotW() * (float) i), (float) getHeight() - topPad - 2.0f }; }
     int itemAt (juce::Point<float>) const;
     int slotAt (float x) const;
 
@@ -151,7 +162,7 @@ public:
 private:
     struct Flash { int slot; float x, span, age; };
     int slotOf (int row) const { return mode == Mode::texture ? row : (row == 0 ? slotTone : slotBed); }
-    float nameX() const { return mode == Mode::texture ? 0.0f : 46.0f; }
+    float nameX() const { return mode == Mode::texture ? 8.0f : 52.0f; }
     float nameW() const { return juce::jlimit (84.0f, 150.0f, (float) getWidth() * 0.27f) - (mode == Mode::texture ? 0.0f : 30.0f); }
     float sliderX() const { return (float) getWidth() - 84.0f; }
     int rowAt (juce::Point<float>, bool& onStrip) const;
@@ -195,7 +206,7 @@ protected:
     float time = 0.0f;
 };
 
-// Texture: every grain a soft light, left to right where you hear it, low to high by its note.
+// Texture: every grain a pixel particle with a short trail, left to right where you hear it, low to high by its note.
 class TexturePicture : public Picture
 {
 public:
@@ -205,13 +216,13 @@ public:
 
 private:
     void advance (float dt) override;
-    struct Dot { float u, v, r, age, life, alpha; int type; bool rev; };
+    struct Dot { float u, v, r, age, life, alpha, vx; int type; bool rev; };
     std::vector<Dot> dots;
     juce::Random rng { 7 };
 };
 
-// Drones: each voice a line at its pitch, as bright as it is loud. When the chord or key changes,
-// the old notes fade as the new ones come up beside them.
+// Drones: each voice a line at its pitch inside a dithered band that breathes, as bright as it is loud.
+// When the chord or root changes, the old notes fade as the new ones come up beside them.
 class DronesPicture : public Picture
 {
 public:
@@ -219,11 +230,23 @@ public:
     void paint (juce::Graphics&) override;
 };
 
-// Output: the level as a warm core, the room as rings opening out from it, the echo trailing off.
+// Output, the strip between texture and drones: grains crossing from one to the other (as many as merge lets
+// through), the room as dithered square rings, the level as a core with the echo rising off it, and a pixel meter.
 class OutputPicture : public Picture
 {
 public:
     explicit OutputPicture (GrainFieldProcessor& p);
     void paint (juce::Graphics&) override;
+    // The input is smoothed linear RMS, not a sample peak. Animation uses its own scaling.
+    static constexpr float meterFloorDb = -60.0f, meterHotDb = -1.0f;
+    static float rmsToMeter (float rms)
+    {
+        const float db = juce::Decibels::gainToDecibels (rms, meterFloorDb);
+        return juce::jlimit (0.0f, 1.0f, (db - meterFloorDb) / -meterFloorDb);
+    }
+
+private:
+    void advance (float dt) override;
+    float meter = 0.0f, peak = 0.0f, peakAge = 0.0f;
 };
 } // namespace gf::ui

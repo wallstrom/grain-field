@@ -1,6 +1,6 @@
 # Grain Field User Guide
 
-Version 0.7.1. [Back to the README](../README.md).
+Version 0.8.0 — in development. [Back to the README](../README.md).
 
 This experimental build is for evaluation, not production use. Developer ID signing/notarization and real DAW integration remain unverified. Back up projects and existing plugin copies before testing.
 
@@ -33,7 +33,7 @@ When it says **Done**, the plugin is installed here:
 | VST3 | `~/Library/Audio/Plug-Ins/VST3/Grain Field.vst3` | Ableton Live |
 | Standalone app | `build/GrainField_artefacts/Release/Standalone/Grain Field.app` | No DAW needed |
 
-**Coming from 0.6:** the parts are now **scenes** with no timeline: their lengths and **play through** are gone, so nothing moves on by itself. Your projects open with every part as a scene, in the same order. If you relied on play through, automate the **Scene** parameter in your DAW instead (section 4). **Coming from 0.5:** projects open exactly as they were. Every layer starts on the root, which is the old key, so nothing moves until you ask it to (section 4, *Notes in layers*). **Coming from 0.4:** projects open with their parts, chords and sounds. Tape and space are now set per module, so those start at their defaults. **Coming from 0.3 or earlier:** old projects open as a new, empty piece.
+**Coming from 0.7:** only the look has changed: a black screen lit in white, pixel type and pixel knobs, and every control in a bordered bay lined up with its module. The output is now the narrow strip between texture and drones. Projects and pieces open as they were. **Coming from 0.6:** the parts are now **scenes** with no timeline: their lengths and **play through** are gone, so nothing moves on by itself. Your projects open with every part as a scene, in the same order. If you relied on play through, automate the **Scene** parameter in your DAW instead (section 4). **Coming from 0.5:** projects open exactly as they were. Every layer starts on the root, which is the old key, so nothing moves until you ask it to (section 4, *Notes in layers*). **Coming from 0.4:** projects open with their parts, chords and sounds. Tape and space are now set per module, so those start at their defaults. **Coming from 0.3 or earlier:** old projects open as a new, empty piece.
 
 ## 2. Open it
 
@@ -41,17 +41,18 @@ When it says **Done**, the plugin is installed here:
 
 **Ableton Live:** open Settings > Plug-ins, turn on **Use VST3 Plug-in System Folders**, and click Rescan. Then find **Grain Field** under Plug-ins > VST3 and drag it onto a MIDI track.
 
-It opens **empty and stopped**: no sounds, nothing playing. Pick your sounds in the texture and drones modules (or a whole piece with **‹ ›** at the top), then press the round **play** button. Stop fades everything out to silence over a second and a half; play carries on from where it was. Turn on **sync** (right of the transport bar) to play only while your song plays, in its tempo. A saved project also opens stopped, unless sync is on.
+It opens **empty and stopped**: no sounds, nothing playing. Pick your sounds in the texture and drones modules (or a whole piece with **‹ ›** at the top), then press **play** (top left). Stop fades everything out to silence over a second and a half; play carries on from where it was. Turn on **sync** (right end of the transport) to play only while your song plays, in its tempo. A saved project also opens stopped, unless sync is on.
 
 ## 3. Reading the screen
 
 The screen is a rack of modules that fill the window. Under the header:
 
-- **The transport bar:** play, the clock, record and loop on the left; the **chords** across the middle; then **line** and **dissolve**, the **root**, the **tempo** and **sync**.
+- **The transport:** play, the clock, record and loop on the left; the **root** in the middle; **line**, **dissolve**, the **tempo** and **sync** on the right.
+- **The chords:** eight slots across the whole width.
 - **The scenes:** whole sounds you've kept, as a row you click to blend between, with the **blend** time and your last **take** on the right.
-- **Three modules side by side:** **texture → drones → output**.
+- **Three modules side by side:** **texture**, the narrow **out** strip, and **drones**.
 
-Each module has its **picture** on top (what it's doing right now), its **sounds** under that (with their waveforms and notes), and its **knobs** along the bottom. The texture melts into the drones as far as **merge** says (the arrow between their pictures gets brighter with it), and both go on to the output.
+Every group of controls sits in a bay with a border, and the bays line up with the three modules below them, so you can tell at a glance what belongs where. Each module has a row of controls at the top, its **picture** (what it's doing right now), its **sounds** (with their waveforms and notes), and its **knobs** in a grid along the bottom. The texture melts into the drones as far as **merge** says, and both go out through the strip between them.
 
 ### Texture
 
@@ -59,39 +60,39 @@ Clouds of grains, cut from up to three sounds.
 
 - **Where it plays.** Beside **texture**, at the top of the module, is the note the texture plays on: the root, or a step away from it (a fifth or a fourth above, an octave up or down). Each sound has its own note too, in the small column after its name: it **follows** the texture, takes a step of its own, or keeps its **own** pitch. Click either to change it; see *Notes in layers* in section 4.
 - **The sounds.** Click a name to change it. Beside each name is its **waveform**, and on the waveform a lit **window**: the stretch of the sound the grains are being cut from. Every grain flashes at the spot it was taken from. **Drag the window** to cut from somewhere else; hold Shift and drag to move all three together; double-click to put it back. **smear** makes the window wider, so the grains roam further. The slider at the end of the row is that sound's **amount** in the cloud.
-- **The picture.** Each grain is a soft light: left to right is where you hear it (so **spread** widens the cloud), height is its note, bigger lights are longer grains, and reversed grains swell in instead of fading out.
-- **tape** and **space** are the texture's own. Tape is one knob from a gentle waver to a worn machine (the cloud sways with it, and dims when the tape drops out). Space is how far back in the room the texture sits (the lights get wider).
-- **resample** (top of the module) records the last 8 seconds of everything you hear and adds it to the texture as a sound of its own, so the piece can feed on itself. It goes into the first empty sound, or replaces the one you use least, and shows up in orange.
+- **The picture.** Each grain is a square of light that drifts and leaves a short trail: left to right is where you hear it (so **spread** widens the cloud), height is its note, bigger squares are longer grains, and reversed grains swell in instead of fading out. The dotted haze behind them thickens with **space** and **smear**.
+- **tape** and **space** are the texture's own. Tape is one knob from a gentle waver to a worn machine (the cloud sways with it, and dims when the tape drops out). Space is how far back in the room the texture sits (the haze gets thicker).
+- **resample** (top of the module) records the last 8 seconds of everything you hear and adds it to the texture as a sound of its own, so the piece can feed on itself. It goes into the first empty sound, or replaces the one you use least, and shows up lit.
 
 ### Drones
 
 A slow body holding the chord.
 
-- **from** is the sound the drones grow from; **under** is the bed, a sound that plays underneath everything. Their waveforms show an orange line where each is being read right now. **bed** on the third row is the bed's level, with its own solo and mute.
+- **from** is the sound the drones grow from; **under** is the bed, a sound that plays underneath everything. Their waveforms show a bright line where each is being read right now. **bed** on the third row is the bed's level, with its own solo and mute.
 - **Where they play.** The note after **from** is where the drones play, and the note after **under** is where the bed plays, each counted from the root. The bed can also keep its **own** pitch.
-- **The picture.** Each line is a voice at its pitch, brighter when louder, with its note on the right. The **orange line** is the melody. When the chord or root changes you see the old notes fade while the new ones come up beside them. The glow along the bottom is the bed.
+- **The picture.** Each line is a voice at its pitch, brighter when louder, with its note on the right. The **dashed line** is the melody. When the chord or root changes you see the old notes fade while the new ones come up beside them. The dotted floor along the bottom is the bed.
 - **merge** is how far the texture and the bed melt into the drones. Low, you hear layers side by side. High, the texture rings at the chord's notes and is taken up into the drones, so you hear one sound being reshaped.
 - **tape** and **space** are the drones' own, separate from the texture's. Because each module has its own tape, the two never wobble in step, which is a large part of why they now sit inside each other instead of one lying on top of the other.
 
-### Output
+### Out
 
-What happens to everything on its way out: **drive** (saturation, up to distortion), **echo** (a tape echo on the texture, in time), **room** (how big the room is that both modules are sent into, from small to vast) and **volume**. In the picture, the core is how loud it is and turns warmer with drive, the rings are the room, and the dots trailing off are the echo. **inside / outside** is for using your own reverb (section 7).
+The narrow strip between texture and drones: what happens to everything on its way out. **drive** (saturation, up to distortion), **echo** (a tape echo on the texture, in time), **room** (how big the room is that both modules are sent into, from small to vast) and **volume**. In the picture, the core is how loud it is and grows a halo with drive, the square rings are the room, the squares rising off are the echo, and the grains crossing over show how much the texture and drones are merging. The **RMS** meter on the right uses a -60 to 0 dBFS scale, with a short hold of the highest RMS reading. Its red zone starts at -1 dBFS RMS; it is not a sample-peak or clipping detector. **inside / outside** is for using your own reverb (section 7).
 
 ### Everywhere
 
 **solo** and **mute** sit next to texture, drones and the bed. Solo one to hear only what it makes. Grainy movement comes from the texture, the slow wall from the drones, the room tone from the bed. Crackle comes from **detail** and from **tape**.
 
-**root sound** (top left, beside the name) loads one recording into every module at once; see section 6. Right after it is the **root note**, the note the whole piece is counted from. The arrows step it a semitone; click the note for the list.
+**root sound** (top left, beside the name) loads one recording into every module at once; see section 6. The **root note**, in the middle of the transport, is the note the whole piece is counted from. The arrows step it a semitone; click the note for the list.
 
-**Window size.** Drag the bottom-right corner to any shape: a wider window stretches the modules sideways, a taller one gives the pictures more room. **size** (top right) makes everything bigger or smaller, from 70% to 200%. The size is kept with your project.
+**Window size.** Drag the bottom-right corner to any shape: a wider window stretches the modules sideways, a taller one gives the pictures more room. **size** (top right) sets how big everything is: 100%, 150% or 200%, so every pixel stays sharp. Drag the corner to make the window wider or taller and the modules take the extra room. The size is kept with your project.
 
-Hover over anything to see what it does in the footer. **Double-click a knob to put it back where it starts.** Hold Shift while dragging for fine changes. Knobs in **orange** are the ones Swell moves. When the sound is somewhere other than where a knob points (because of Swell, or a blend between scenes) a small hollow mark on the ring shows where it really is.
+Hover over anything to see what it does in the footer. **Double-click a knob to put it back where it starts.** Hold Shift while dragging for fine changes. Knobs drawn at full brightness are the ones Swell moves. When the sound is somewhere other than where a knob was set (because of Swell, or a blend between scenes) the knob shows where it really is and its tip blinks.
 
 ## 4. Composing a piece
 
 ### Scenes
 
-A scene is a whole sound kept as it is: its sounds, notes, chords and every knob. The row under the transport bar holds them; the one you're in is orange.
+A scene is a whole sound kept as it is: its sounds, notes, chords and every knob. The row under the chords holds them; the one you're in is lit.
 
 - **Click a scene to blend into it.** It fills from the left as it comes in, over the **blend** time on the right (click it: from a cut to three minutes). Nothing new is made, and nothing moves on by itself.
 - **What you change is kept with the scene you're in.** Leave it and come back, and it's as you left it.
@@ -111,7 +112,7 @@ A scene is a whole sound kept as it is: its sounds, notes, chords and every knob
 
 ### Recording a session
 
-The ring beside the clock is **record**. Click it and everything you hear is written to a file, your knob moves and chord changes included, until you click it again. If the piece was stopped, recording starts it. With **sync** on, the recording waits and starts when your song does.
+The red square after the clock is **record**. Click it and everything you hear is written to a file, your knob moves and chord changes included, until you click it again. If the piece was stopped, recording starts it. With **sync** on, the recording waits and starts when your song does.
 
 When you stop, the take appears at the right end of the scenes row as **take 2:31**. **Drag it onto an audio track** in Logic or Live and it's a region like any other. Click it instead to show the file, or to make the take the **root sound** of a new layer. Takes are 24-bit WAV files kept in `Music/Grain Field/Recordings`.
 
@@ -121,17 +122,17 @@ Each take is stamped with the place in your song where it began. In Logic, drop 
 
 ### Swell
 
-Swell is the long orange line at the bottom: **quiet** on the left, **wall** on the right. It moves density, body, sub, drive and both spaces together, so one gesture takes a piece from a few grains in a room to a dense, saturated mass.
+Swell is the long line at the bottom, the brightest thing on screen: **quiet** on the left, **wall** on the right. It moves density, body, sub, drive and both spaces together, so one gesture takes a piece from a few grains in a room to a dense, saturated mass.
 
 - **Drag the handle** to move it yourself.
-- **Click a point on the line** and Swell travels there by itself, over the time shown as **fade** on the right (click it: 5 seconds to 5 minutes). You see where it's heading and how long is left. Click **quiet** or **wall** under the line to go all the way. Take the handle at any moment and it's yours again.
+- **Click a point on the line** and Swell travels there by itself, over the time shown as **fade** on the right (click it: 5 seconds to 5 minutes). You see where it's heading and how long is left. Click **quiet** or **wall** at either end of the line to go all the way. Take the handle at any moment and it's yours again.
 - The small dots on the line show where Swell sits in your other scenes.
 
 **freeze** holds the texture where it is while the drones keep breathing.
 
 ### Harmony: chord slots
 
-Eight slots, across the middle of the transport bar. The texture and drones are tuned to whichever is playing (orange frame, with a line along its bottom showing how far into it you are). Each slot shows its chord, the notes as they will sound (the lowest first, with its octave, such as **e2**), and how many bars it lasts.
+Eight slots, in their own row under the transport. The texture and drones are tuned to whichever is playing (its title bar lit, with blocks along its bottom showing how far into it you are). Each slot shows its chord, the notes as they will sound (the lowest first, with its octave, such as **e2**), and how many bars it lasts.
 
 - **Set up a chord:** click the empty slot with **+**. Pick its **note**, its **kind** (fifth, open, minor, major, sus, cluster), how many **bars** it lasts, and its **octave**.
 - **Octave** is how high the chord sits: **-1** is darker, **0** is where it would sit by itself, **+1** and **+2** are brighter. A chord moved from 0 shows it beside its name, so you can tell before you get there whether the next chord will be dark or bright.
@@ -154,7 +155,7 @@ Eight slots, across the middle of the transport bar. The texture and drones are 
 
 Nothing ever slides in pitch. When a chord or the root changes, each voice's new note comes up beside its old one, which keeps ringing as it fades: a true crossfade, one voice after another, and the texture's tuning crosses over the same way. Notes two chords share simply keep sounding.
 
-**Whatever sound you add follows where its layer plays.** A sound with a clear note of its own (it's shown in orange by the name) is moved by the smallest step to fit; this includes the bed. A sound with no clear note is tuned by the chord's filter. A sound set to its **own** pitch is left exactly as recorded.
+**Whatever sound you add follows where its layer plays.** A sound with a clear note of its own (its note is shown by the name) is moved by the smallest step to fit; this includes the bed. A sound with no clear note is tuned by the chord's filter. A sound set to its **own** pitch is left exactly as recorded.
 
 ### Notes in layers
 
@@ -162,7 +163,7 @@ The notes of a piece come in three levels, each counted from the one above it:
 
 | Level | Where you set it | What it moves |
 | --- | --- | --- |
-| **Root** | **root ‹ d ›** in the transport bar | everything that follows it, the chords included |
+| **Root** | **root ‹ d ›** in the middle of the transport | everything that follows it, the chords included |
 | **Texture, drones, bed** | beside **texture**; after **from** and **under** | that module and its sounds |
 | **Each texture sound** | the small column after its name | just that sound |
 
@@ -205,7 +206,7 @@ Click any sound's name in the texture or drones module to choose another. The bu
 
 Click **root sound** at the top left, beside the name, and load a recording. It becomes every source at once (all three textures, the drones and the bed), and the root moves to its **core note**: the pitch it keeps coming back to (a hum, wind in wires, a fridge, a voice). From there everything is that one recording, granulated, merged into the drones and tuned to the chords; swap any single slot afterwards if you like.
 
-When you load any recording of your own, Grain Field listens for its core note and shows it in orange next to the name. Its grains are moved only by the smallest step to fit the chord, so it keeps its character.
+When you load any recording of your own, Grain Field listens for its core note and shows it next to the name. Its grains are moved only by the smallest step to fit the chord, so it keeps its character.
 
 **Changing a sound's note.** The note beside the name is the note the sound is tuned *from*, like the root key of a sample in a sampler. If listening got it wrong, or found nothing (then it says **note** in grey), click it and pick the note the sound really is. From then on the sound is shifted from that note to fit each chord. **as found by listening** goes back; **no note** leaves the sound at its own pitch, with only the chord's filter tuning it. An underline shows a note you set yourself. The note belongs to the sound, so each of your sounds has its own, the same sound has the same note in every slot, and it's saved with the piece. The built-in sounds are already mapped note by note, so they have nothing to set. Click the name for **tune to this sound** (the root becomes its note) and **make a piece from this sound** (five scenes, from mostly the raw recording to a peak and back, all grown from it).
 
@@ -276,7 +277,7 @@ Do not disable Gatekeeper, lower startup security, or recursively remove quarant
 
 Grain Field's original code is licensed under the GNU Affero General Public License, version 3 only (see `LICENSE` at the project root). When distributing binaries, comply with its corresponding-source and notice requirements. JUCE 8 is separately dual-licensed under AGPLv3 or a commercial JUCE licence; see juce.com/get-juce. A commercial JUCE licence does not remove Grain Field's own AGPL obligations.
 
-The interface uses DM Mono and Instrument Serif, both under the SIL Open Font License (see `Resources/Fonts`). The built-in sounds start from the Versilian Community Sample Library, released as CC0 (see `Resources/Sounds/CREDITS.txt`).
+The interface uses VT323 and Silkscreen, both under the SIL Open Font License (see `Resources/Fonts`). The built-in sounds start from the Versilian Community Sample Library, released as CC0 (see `Resources/Sounds/CREDITS.txt`).
 
 To change the company name shown in your DAW, edit `COMPANY_NAME` in `CMakeLists.txt` and rebuild.
 

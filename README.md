@@ -4,11 +4,13 @@
 
 A generative ambient instrument for macOS: granular textures, evolving drones, and layered harmony, shaped into pieces over time. No MIDI keyboard required.
 
-**Version 0.7.1** · Audio Unit · VST3 · Standalone · Apple silicon + Intel
+**Version 0.8.0 — in development** · Audio Unit · VST3 · Standalone · Apple silicon + Intel
+
+This branch contains the OLED UI redesign and is not a published 0.8.0 release. The latest published download remains [v0.7.1](https://github.com/wallstrom/grain-field/releases/tag/v0.7.1), with the earlier interface.
 
 Experimental build for evaluation: Developer ID signing/notarization and real DAW integration remain unverified. Back up projects before testing; this is not a production-ready release.
 
-![Grain Field 0.7.1 interface showing the arc preset's peak scene](Screenshots/ui_wall.png)
+![Grain Field 0.8.0 OLED interface showing the arc preset's peak scene](Screenshots/ui_wall.png)
 
 ## What it does
 
@@ -51,7 +53,7 @@ Host integration remains unverified for this release. If a host or macOS blocks 
 ### Make your first sound
 
 1. Start with a low monitoring volume. New instances open **empty and stopped**; no MIDI keyboard is required.
-2. Use **‹ ›** at the top to select a factory piece such as **arc**, **haze**, **night rain**, or **wall**, then press the round **play** button.
+2. Use **‹ ›** at the top to select a factory piece such as **arc**, **haze**, **night rain**, or **wall**, then press **play**.
 3. Move **Swell** from quiet toward wall to explore intensity. Change individual sounds in the **texture** and **drones** modules, and use **volume** to control the output.
 4. With **sync** enabled, start your DAW's transport too; the plugin waits while the host is stopped. With sync off, its own play button runs it independently.
 5. Click a **scene** to blend into another sound. Scenes do not advance automatically; arrange changes with the DAW's **Scene** automation parameter.
@@ -62,11 +64,12 @@ For all controls, MIDI harmony, side-chain input, recording, and multi-output ro
 
 ## Status
 
-Local release validation for **v0.7.1** on **2026-11-11**:
+Local OLED development validation for **0.8.0** on **2026-11-11**:
 
-- **40 audio checks in full mode**, **6 synthetic UI checks**, and **9 Python build-tool regression tests** passed on Apple silicon.
-- The README screenshot was regenerated at 2× resolution from the current source using the snapshot target, then visually inspected.
-- Universal AU, VST3, and standalone packages are produced by the [Build workflow](https://github.com/wallstrom/grain-field/actions/workflows/build.yml). See the release notes for the tagged CI result, archive verification, and checksum.
+- **40 audio checks in full mode**, **22 synthetic UI checks**, and **10 Python build-tool regression tests** passed on Apple silicon.
+- UI regressions cover WALL edge clicks, visible fade countdowns across six window sizes, scene-name contrast during blending, 16-bar hover actions, and RMS meter calibration.
+- Screenshots were regenerated at 2× resolution from the fixed OLED source; representative normal, transition, chord-hover, and scaled states were visually inspected.
+- Universal packages from the original OLED PR passed CI. Check [PR #1](https://github.com/wallstrom/grain-field/pull/1) for the current fixes' CI result; local checks are not a substitute for that build. This branch does not publish a new release.
 - Manual listening, native window interaction, and real DAW integration remain unverified, as do distribution signing and notarization.
 
 Scenes replace timed parts: there is no internal timeline or automatic play-through. Existing v0.6 parts load as scenes; automate the **Scene** parameter in your DAW to arrange transitions.
@@ -89,16 +92,16 @@ Grain Field's original code is licensed under the GNU Affero General Public Lice
 
 ## Release status and known limitations
 
-Grain Field **v0.7.1 is a final version tag, but remains experimental software** intended for evaluation and feedback, not production use. Final release status does not imply Apple signing/notarization or verified DAW compatibility. Back up your projects and existing plugin installations before testing.
+Grain Field **0.8.0 is in development and has not been released**. It remains experimental software intended for evaluation and feedback, not production use. The existing v0.7.1 final tag does not imply Apple signing/notarization or verified DAW compatibility. Back up your projects and existing plugin installations before testing.
 
 ### What has been verified
 
-- Native Apple silicon render and snapshot targets compiled for version 0.7.1 with JUCE 8.0.15.
+- Native Apple silicon render and snapshot targets compiled for version 0.8.0 with JUCE 8.0.15.
 - The full audio suite passed 40 checks, including scene persistence, DAW scene automation, and transport sync in the offline harness.
-- Six synthetic UI checks and nine Python build-tool regression tests passed.
+- Twenty-two synthetic UI checks and ten Python build-tool regression tests passed.
 - The refreshed README screenshot was generated from this source and visually inspected.
 
-These local checks do not exercise Intel binaries or a real DAW. The release notes record the separate tagged universal-build and download verification results.
+These local fixes have not been tested as Intel binaries or in a real DAW. The v0.7.1 release notes describe only that earlier release's separate universal-build and download verification.
 
 ### Known limitations
 
