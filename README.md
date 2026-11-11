@@ -4,9 +4,9 @@
 
 A generative ambient instrument for macOS: granular textures, evolving drones, and layered harmony, shaped into pieces over time. No MIDI keyboard required.
 
-**Version 0.8.0 — in development** · Audio Unit · VST3 · Standalone · Apple silicon + Intel
+**Version 0.8.0** · Audio Unit · VST3 · Standalone · Apple silicon + Intel
 
-This branch contains the OLED UI redesign and is not a published 0.8.0 release. The latest published download remains [v0.7.1](https://github.com/wallstrom/grain-field/releases/tag/v0.7.1), with the earlier interface.
+Download the [v0.8.0 release](https://github.com/wallstrom/grain-field/releases/tag/v0.8.0) for the OLED interface redesign and usability fixes. The macOS ZIP includes the Audio Unit, VST3, and standalone app.
 
 Experimental build for evaluation: Developer ID signing/notarization and real DAW integration remain unverified. Back up projects before testing; this is not a production-ready release.
 
@@ -26,8 +26,8 @@ Requires **macOS 11 or later** on Apple silicon or Intel. Developer tools are on
 
 ### Install a downloaded build
 
-1. Download `Grain-Field-v0.7.1-macOS-universal.zip` from the [v0.7.1 release](https://github.com/wallstrom/grain-field/releases/tag/v0.7.1). Choose the plugin ZIP, not GitHub's source-code archives.
-2. Compare its SHA-256 with the release notes, then extract the ZIP. Quit your DAW and back up existing plugin copies before replacing them.
+1. Download `Grain-Field-v0.8.0-macOS-universal.zip` from the [v0.8.0 release](https://github.com/wallstrom/grain-field/releases/tag/v0.8.0). Choose the plugin ZIP under **Assets**, not GitHub's source-code archives.
+2. From the download folder, run `shasum -a 256 "Grain-Field-v0.8.0-macOS-universal.zip"` and compare the result with the SHA-256 in the release notes. If it matches, extract the ZIP. Quit your DAW and back up existing plugin copies before replacing them.
 3. In Finder, use **Go > Go to Folder** to open the destinations below; create the user folders if they do not exist. Copy each complete bundle, without renaming it:
    - **Audio Unit:** `Grain Field.component` → `~/Library/Audio/Plug-Ins/Components/`
    - **VST3:** `Grain Field.vst3` → `~/Library/Audio/Plug-Ins/VST3/`
@@ -64,12 +64,12 @@ For all controls, MIDI harmony, side-chain input, recording, and multi-output ro
 
 ## Status
 
-Local OLED development validation for **0.8.0** on **2026-11-11**:
+Release validation for **v0.8.0** on **2026-11-11**:
 
 - **40 audio checks in full mode**, **22 synthetic UI checks**, and **10 Python build-tool regression tests** passed on Apple silicon.
 - UI regressions cover WALL edge clicks, visible fade countdowns across six window sizes, scene-name contrast during blending, 16-bar hover actions, and RMS meter calibration.
 - Screenshots were regenerated at 2× resolution from the fixed OLED source; representative normal, transition, chord-hover, and scaled states were visually inspected.
-- Universal packages from the original OLED PR passed CI. Check [PR #1](https://github.com/wallstrom/grain-field/pull/1) for the current fixes' CI result; local checks are not a substitute for that build. This branch does not publish a new release.
+- [Tagged macOS CI passed](https://github.com/wallstrom/grain-field/actions/runs/43122411639), including packaging and artifact upload. The published ZIP passed integrity checks; all three bundles report version 0.8.0 and contain arm64 and x86_64 executables, with the project license, both font notices, and sound credits verified against the tagged source.
 - Manual listening, native window interaction, and real DAW integration remain unverified, as do distribution signing and notarization.
 
 Scenes replace timed parts: there is no internal timeline or automatic play-through. Existing v0.6 parts load as scenes; automate the **Scene** parameter in your DAW to arrange transitions.
@@ -92,7 +92,7 @@ Grain Field's original code is licensed under the GNU Affero General Public Lice
 
 ## Release status and known limitations
 
-Grain Field **0.8.0 is in development and has not been released**. It remains experimental software intended for evaluation and feedback, not production use. The existing v0.7.1 final tag does not imply Apple signing/notarization or verified DAW compatibility. Back up your projects and existing plugin installations before testing.
+Grain Field **v0.8.0 is published**, but remains experimental software intended for evaluation and feedback, not production use. Publishing a release does not imply Apple signing/notarization or verified DAW compatibility. Back up your projects and existing plugin installations before testing.
 
 ### What has been verified
 
@@ -100,8 +100,9 @@ Grain Field **0.8.0 is in development and has not been released**. It remains ex
 - The full audio suite passed 40 checks, including scene persistence, DAW scene automation, and transport sync in the offline harness.
 - Twenty-two synthetic UI checks and ten Python build-tool regression tests passed.
 - The refreshed README screenshot was generated from this source and visually inspected.
+- The tagged universal build and published ZIP passed the package checks described above; the release notes include its SHA-256.
 
-These local fixes have not been tested as Intel binaries or in a real DAW. The v0.7.1 release notes describe only that earlier release's separate universal-build and download verification.
+Local test execution was on Apple silicon. Intel runtime behavior and real DAW integration remain unverified, even though the release bundles contain both architectures. See the [v0.8.0 release notes](https://github.com/wallstrom/grain-field/releases/tag/v0.8.0) for verification details and the download checksum.
 
 ### Known limitations
 
@@ -112,7 +113,7 @@ These local fixes have not been tested as Intel binaries or in a real DAW. The v
 
 ### Before installing
 
-Download from the [official release](https://github.com/wallstrom/grain-field/releases/tag/v0.7.1), compare the ZIP's SHA-256 with the release notes, and read the [installation and security guidance](docs/USER_GUIDE.md#10-build-in-the-cloud-instead-optional). A matching checksum confirms file integrity, not software safety.
+Download from the [official v0.8.0 release](https://github.com/wallstrom/grain-field/releases/tag/v0.8.0), compare the ZIP's SHA-256 with the release notes, and read the [installation instructions above](#install-a-downloaded-build) and [macOS security guidance](docs/USER_GUIDE.md#macos-security-warnings). A matching checksum confirms file integrity, not software safety.
 
 Do not disable Gatekeeper or lower your Mac's startup security to load the plugin.
 
