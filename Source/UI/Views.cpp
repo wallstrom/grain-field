@@ -53,18 +53,21 @@ juce::String ScenesView::sceneName (int part) const
 
 void ScenesView::layout()
 {
-    // The label, then one chip per scene, then the chip that keeps what you hear as a new one.
+    // One cell per scene, sharing the bay, then the cell that keeps what you hear as a new one.
     chips.clear();
-    float x = textWidth ("scenes") + 22.0f;
+    int n = 0;
+    for (int i = 0; i < numScenes; ++i) n += proc.getScenes().slots[(size_t) i].used ? 1 : 0;
+    const bool canAdd = proc.getScenes().firstFree() >= 0;
+    const float addW = canAdd ? 92.0f : 0.0f, h = (float) getHeight();
+    const float w = std::floor (((float) getWidth() - addW) / (float) juce::jmax (5, n));
+    float x = 0.0f;
     for (int i = 0; i < numScenes; ++i)
     {
         if (! proc.getScenes().slots[(size_t) i].used) continue;
-        const float w = textWidth (sceneName (i)) + 26.0f;
-        chips.push_back ({ i, { x, 0.0f, w, chipH } });
-        x += w + 8.0f;
+        chips.push_back ({ i, { x, 0.0f, w, h } });
+        x += w;
     }
-    addRect = proc.getScenes().firstFree() >= 0 ? juce::Rectangle<float> (x, 0.0f, textWidth ("+ keep this as a scene") + 26.0f, chipH)
-                                                : juce::Rectangle<float>();
+    addRect = canAdd ? juce::Rectangle<float> ((float) getWidth() - addW, 0.0f, addW, h) : juce::Rectangle<float>();
 }
 
 juce::Rectangle<float> ScenesView::chipRect (int part) const
@@ -93,38 +96,29 @@ void ScenesView::tick()
 void ScenesView::paint (juce::Graphics& g)
 {
     if (chips.empty() && addRect.isEmpty()) layout();
-    text (g, "scenes", 0.0f, chipH * 0.5f - 8.0f, col::dim (0.4f), 11.0f);
     const int active = proc.getActivePart();
     const float pr = proc.engine.getBlendProgress();
     for (auto& c : chips)
     {
         const bool on = c.part == active, over = hover == c.part;
-        auto r = c.r.reduced (0.5f);
-        if (on)
+        const auto r = c.r.withTrimmedRight (1.0f);
+        if (on && pr >= 0.0f && pr < 1.0f)
         {
-            g.setColour (col::accent.withAlpha (0.08f));
-            g.fillRect (r);
-            // While it blends in, the chip fills from the left.
-            if (pr >= 0.0f && pr < 1.0f)
-            {
-                g.setColour (col::accent.withAlpha (0.18f));
-                g.fillRect (r.withWidth (r.getWidth() * pr));
-            }
+            // Blending in: the cell lights up from the left.
+            raised (g, r, false, false);
+            g.setColour (col::ink);
+            g.fillRect (r.withWidth (std::round (r.getWidth() * pr)));
         }
-        g.setColour (on ? col::accent : col::dim (over ? 0.5f : 0.18f));
-        g.drawRect (r, 1.0f);
-        text (g, sceneName (c.part), c.r.getX() + 13.0f, c.r.getCentreY() - 8.0f, on ? col::accent : (over ? col::ink : col::dim (0.75f)), 11.0f);
+        else raised (g, r, on, over);
+        ruleV (g, c.r.getRight() - 1.0f, 0.0f, c.r.getBottom());
+        label (g, sceneName (c.part), r.getCentreX(), r.getCentreY() - 6.0f, on ? col::bg : (over ? col::bright : col::dim (0.7f)), 8.0f,
+               juce::Justification::centred, r.getWidth() - 8.0f);
     }
     if (! addRect.isEmpty())
     {
         const bool over = hover == onAdd;
-        g.setColour (col::dim (over ? 0.5f : 0.2f));
-        const float dash[] = { 2.0f, 3.0f };
-        juce::Path outline, dashed;
-        outline.addRectangle (addRect.reduced (0.5f));
-        juce::PathStrokeType (1.0f).createDashedStroke (dashed, outline, dash, 2);
-        g.fillPath (dashed);
-        text (g, "+ keep this as a scene", addRect.getX() + 13.0f, addRect.getCentreY() - 8.0f, over ? col::ink : col::dim (0.5f), 11.0f);
+        raised (g, addRect, false, over);
+        label (g, "+ keep", addRect.getCentreX(), addRect.getCentreY() - 6.0f, over ? col::bright : col::dim (0.5f), 8.0f, juce::Justification::centred, addRect.getWidth());
     }
 }
 
@@ -378,26 +372,10 @@ void HarmonyView::paint (juce::Graphics& g)
     const int cue = ed ? -1 : proc.engine.getCue();
     const int when = proc.engine.getCueWhen();
 
-    // Header: the chords, and the root they're counted from. Whether they stay or loop is the loop button beside them.
-    const juce::String title = ed ? "chords of " + lower (proc.getScenes().slots[(size_t) proc.getNextPart()].name) : juce::String ("chords");
-    text (g, title, 0.0f, 0.0f, ed ? col::ink : col::dim (0.4f), 11.0f);
-    // The chords are counted from the root, which sits at the top of the window.
-    const float kx = keyNameX();
-    text (g, "on", kx, 0.0f, col::dim (0.4f), 11.0f);
-    text (g, noteLower (key), kx + 22.0f, 0.0f, hover == onKey ? col::accent : col::ink, 11.0f);
-
-    // A chord played on a MIDI keyboard: its name, and what to do with it.
+    // A chord played on a MIDI keyboard: its name, and what to do with it, set into the top border.
     juce::String keysName;
     float xKeysName = 0.0f, xKeep = 0.0f, xLetGo = 0.0f;
     const bool keysHold = keysLayout (keysName, xKeysName, xKeep, xLetGo);
-    if (keysHold)
-    {
-        text (g, "keys", xKeysName - textWidth ("keys") - 10.0f, 0.0f, col::dim (0.4f), 11.0f);
-        text (g, keysName, xKeysName, 0.0f, col::accent, 11.0f);
-        text (g, "keep", xKeep, 0.0f, hover == onKeep ? col::accent : col::dim (0.75f), 11.0f);
-        text (g, "let go", xLetGo, 0.0f, hover == onLetGo ? col::accent : col::dim (0.45f), 11.0f);
-    }
-
     const bool blink = (juce::Time::getMillisecondCounter() / 350) % 2 == 0;
     const int firstEmpty = p.count;
     for (int i = 0; i < Progression::maxSteps; ++i)
@@ -405,66 +383,84 @@ void HarmonyView::paint (juce::Graphics& g)
         auto r = slotRect (i);
         const bool used = i < p.count;
         const bool isDragged = dragging && i == pressed;
+        if (i < Progression::maxSteps - 1) ruleV (g, r.getRight() - 1.0f, r.getY(), r.getBottom());
+        r = r.withTrimmedRight (i < Progression::maxSteps - 1 ? 1.0f : 0.0f);
         if (! used)
         {
             // Off until you set it up.
-            g.setColour (col::dim (i == firstEmpty && hover == i ? 0.4f : 0.12f));
-            const float dash[] = { 2.0f, 3.0f };
-            juce::Path outline;
-            outline.addRectangle (r.reduced (0.5f));
-            juce::Path dashed;
-            juce::PathStrokeType (1.0f).createDashedStroke (dashed, outline, dash, 2);
-            g.fillPath (dashed);
+            g.setColour (i == firstEmpty && hover == i ? col::raised : juce::Colour (0xff060606));
+            g.fillRect (r);
             if (i == firstEmpty)
-                text (g, "+", r.getCentreX(), r.getCentreY() - 8.0f, col::dim (hover == i ? 0.9f : 0.35f), 12.0f, juce::Justification::centred, 20.0f);
+                text (g, "+", r.getCentreX(), r.getCentreY() - 11.0f, col::dim (hover == i ? 1.0f : 0.4f), 16.0f, juce::Justification::centred, 30.0f);
             continue;
         }
-        if (isDragged) { g.setColour (col::dim (0.06f)); g.fillRect (r); continue; }
+        if (isDragged) { g.setColour (juce::Colour (0xff060606)); g.fillRect (r); continue; }
 
         const auto& st = p.steps[(size_t) i];
         const bool on = i == playing, queued = i == cue;
         const bool over = hover == i || hover == onEditBase + i || hover == onNowBase + i || hover == onLoopBase + i;
         const bool looping = ! ed && ! staying(), out = looping && ! st.loop;   // out of the loop: it waits until you queue it
-        juce::Colour border = on ? (keysHold ? col::accent.withAlpha (0.4f) : col::accent) : (queued ? col::accent.withAlpha (blink ? 0.9f : 0.4f) : col::dim (over ? 0.45f : (out ? 0.1f : 0.2f)));
-        if (on && ! keysHold)
-        {
-            g.setGradientFill (juce::ColourGradient (col::accent.withAlpha (0.10f), 0.0f, r.getBottom(), col::accent.withAlpha (0.0f), 0.0f, r.getY(), false));
-            g.fillRect (r);
-        }
-        g.setColour (border);
-        g.drawRect (r, on ? 1.5f : 1.0f);
+        g.setColour (on ? juce::Colour (0xff161616) : (over ? col::raisedOver : (out ? juce::Colour (0xff0C0C0C) : juce::Colour (0xff111111))));
+        g.fillRect (r);
+
+        // The name on a title bar: inverse on the chord that's playing.
         const auto cname = chordName (key, st);
-        text (g, cname, r.getX() + 6.0f, r.getY() + 5.0f, on ? col::ink : col::dim (over || queued ? 0.9f : (out ? 0.38f : 0.7f)), 10.5f,
-              juce::Justification::centredLeft, r.getWidth() - 22.0f);
+        const auto head = r.withHeight (19.0f);
+        if (on && ! keysHold) { g.setColour (col::ink); g.fillRect (head); }
+        else ruleH (g, head.getX(), head.getRight(), head.getBottom() - 1.0f, col::faint);
+        const juce::Colour nameC = on && ! keysHold ? col::bg : (over || queued ? col::bright : col::dim (out ? 0.4f : 0.85f));
+        text (g, cname, r.getX() + 7.0f, r.getY() + 1.0f, nameC, 12.0f, juce::Justification::centredLeft, r.getWidth() - 24.0f);
         // Moved up or down from where it would sit: say so beside the name.
-        if (st.oct != 0 && textWidth (cname, 10.5f) + 32.0f < r.getWidth() - 14.0f)
-            text (g, octText (st.oct), r.getX() + 6.0f + textWidth (cname, 10.5f) + 6.0f, r.getY() + 5.5f, col::accent.withAlpha (out ? 0.4f : 0.85f), 9.5f);
-        text (g, chordNotesFromBass (key, st), r.getX() + 6.0f, r.getY() + 20.0f, col::dim (out ? 0.25f : 0.45f), 9.0f, juce::Justification::centredLeft, r.getWidth() - 10.0f);
+        if (st.oct != 0 && textWidth (cname, 12.0f) + 40.0f < r.getWidth())
+            text (g, octText (st.oct), r.getX() + 7.0f + textWidth (cname, 12.0f) + 5.0f, r.getY() + 2.0f, on && ! keysHold ? col::bg : col::dim (0.7f), 10.0f);
         if (looping)
         {
-            // In the loop: a small dot. Out of it: a ring.
-            const float lx = r.getRight() - 9.0f, ly = r.getY() + 10.0f;
-            const juce::Colour lc = hover == onLoopBase + i ? col::accent : col::dim (st.loop ? 0.6f : 0.3f);
-            if (st.loop) dot (g, lx, ly, 2.2f, lc);
-            else { g.setColour (lc); g.drawEllipse (lx - 2.5f, ly - 2.5f, 5.0f, 5.0f, 1.0f); }
+            // In the loop: a lit square. Out of it: a hollow one.
+            const float lx = r.getRight() - 11.0f, ly = r.getY() + 7.0f;
+            const juce::Colour lc = hover == onLoopBase + i ? col::bright : (on && ! keysHold ? col::bg : col::dim (st.loop ? 0.7f : 0.35f));
+            g.setColour (lc);
+            if (st.loop) g.fillRect (lx, ly, 5.0f, 5.0f);
+            else g.drawRect (lx, ly, 5.0f, 5.0f, 1.0f);
         }
-        const juce::String bars = juce::String (st.bars) + (st.bars == 1 ? " bar" : " bars");
-        juce::String tag;
-        if (queued) tag = when == 0 ? "next" : (when == 1 ? "at bar" : "now");
-        text (g, tag.isNotEmpty() ? tag : bars, r.getX() + 6.0f, r.getY() + 34.0f, queued ? col::accent : col::dim (0.3f), 9.0f);
+        text (g, chordNotesFromBass (key, st), r.getX() + 7.0f, r.getY() + 20.0f, col::dim (out ? 0.3f : 0.5f), 10.0f, juce::Justification::centredLeft, r.getWidth() - 10.0f);
+
+        // The bars as pixels: lit as they pass. Queued chords say when they come in instead.
+        const float by = r.getBottom() - 9.0f;
+        if (queued)
+            label (g, when == 0 ? "next" : (when == 1 ? "at bar" : "now"), r.getX() + 7.0f, by - 5.0f, blink ? col::bright : col::dim (0.5f), 7.0f);
+        else
+        {
+            const int nb = juce::jlimit (1, 16, st.bars);
+            const float pr = on ? juce::jlimit (0.0f, 1.0f, proc.engine.getStepProgress()) : 0.0f;
+            const int done = (int) std::floor (pr * (float) nb);
+            for (int k = 0; k < nb; ++k)
+            {
+                g.setColour (k < done ? col::bright : (k == done && on && blink ? juce::Colour (0xff8A8A8A) : juce::Colour (0xff2E2E2E)));
+                g.fillRect (r.getX() + 7.0f + (float) k * 7.0f, by, 5.0f, 4.0f);
+            }
+        }
         if (over && ! dragging)
         {
-            pencil (g, r.getRight() - 15.0f, r.getY() + 36.0f, 10.0f, hover == onEditBase + i ? col::accent : col::dim (0.5f));
+            label (g, "edit", r.getRight() - 6.0f, by - 5.0f, hover == onEditBase + i ? col::bright : col::dim (0.55f), 7.0f, juce::Justification::centredRight, 40.0f);
             if (! ed && ! on)
-                text (g, "now", r.getRight() - 24.0f, r.getY() + 34.0f, hover == onNowBase + i ? col::accent : col::dim (0.5f), 9.0f,
-                      juce::Justification::centredRight, 30.0f);
+                label (g, "now", r.getRight() - 38.0f, by - 5.0f, hover == onNowBase + i ? col::bright : col::dim (0.55f), 7.0f, juce::Justification::centredRight, 40.0f);
         }
-        if (on)
+        if (queued)
         {
-            const float pr = juce::jlimit (0.0f, 1.0f, proc.engine.getStepProgress());
-            g.setColour (col::accent);
-            g.fillRect (r.getX(), r.getBottom() - 2.0f, r.getWidth() * pr, 2.0f);
+            g.setColour (col::bright.withAlpha (blink ? 0.9f : 0.3f));
+            g.drawRect (r, 1.0f);
         }
+    }
+
+    if (keysHold)
+    {
+        const float x0 = xKeysName - labelWidth ("keys", 8.0f) - 16.0f, x1 = xLetGo + textWidth ("let go", 11.0f) + 8.0f;
+        g.setColour (col::bg);
+        g.fillRect (x0, 0.0f, x1 - x0, topPad * 2.0f);
+        label (g, "keys", x0 + 6.0f, topPad - 6.0f, col::dim (0.6f), 8.0f);
+        text (g, keysName, xKeysName, topPad - 9.0f, col::bright, 11.0f);
+        text (g, "keep", xKeep, topPad - 9.0f, hover == onKeep ? col::bright : col::dim (0.75f), 11.0f);
+        text (g, "let go", xLetGo, topPad - 9.0f, hover == onLetGo ? col::bright : col::dim (0.5f), 11.0f);
     }
 
     if (dragging && pressed >= 0 && pressed < p.count)
@@ -472,14 +468,14 @@ void HarmonyView::paint (juce::Graphics& g)
         // The slot you're moving, and where it will land.
         const int target = juce::jlimit (0, p.count - 1, slotAt (dragX));
         const auto tr = slotRect (target);
-        g.setColour (col::accent.withAlpha (0.6f));
-        g.fillRect (target <= pressed ? tr.getX() - 3.5f : tr.getRight() + 2.5f, tr.getY(), 1.0f, tr.getHeight());
+        g.setColour (col::bright);
+        g.fillRect (target <= pressed ? tr.getX() : tr.getRight() - 2.0f, tr.getY(), 2.0f, tr.getHeight());
         auto r = slotRect (pressed).withX (dragX - grabOffset);
-        g.setColour (col::bg.withAlpha (0.9f));
+        g.setColour (col::raised);
         g.fillRect (r);
         g.setColour (col::ink);
         g.drawRect (r, 1.0f);
-        text (g, chordName (key, p.steps[(size_t) pressed]), r.getX() + 6.0f, r.getY() + 5.0f, col::ink, 10.5f, juce::Justification::centredLeft, r.getWidth() - 10.0f);
+        text (g, chordName (key, p.steps[(size_t) pressed]), r.getX() + 7.0f, r.getY() + 1.0f, col::ink, 12.0f, juce::Justification::centredLeft, r.getWidth() - 10.0f);
     }
 }
 
@@ -491,21 +487,16 @@ int HarmonyView::slotAt (float x) const
 int HarmonyView::itemAt (juce::Point<float> pt) const
 {
     const bool ed = proc.isEditingNext();
-    if (pt.y < 18.0f)
+    if (pt.y < topPad + 6.0f && ! ed)
     {
-        const float kx = keyNameX();
-        if (pt.x >= kx - 4.0f && pt.x < kx + 46.0f) return onKey;
-        if (! ed)
+        // keep / let go, set into the top border while a keyboard chord holds.
+        juce::String kn;
+        float xn = 0.0f, xk = 0.0f, xg = 0.0f;
+        if (keysLayout (kn, xn, xk, xg))
         {
-            juce::String kn;
-            float xn = 0.0f, xk = 0.0f, xg = 0.0f;
-            if (keysLayout (kn, xn, xk, xg))
-            {
-                if (pt.x >= xk - 5.0f && pt.x < xk + textWidth ("keep") + 6.0f) return onKeep;
-                if (pt.x >= xg - 5.0f && pt.x < xg + textWidth ("let go") + 6.0f) return onLetGo;
-            }
+            if (pt.x >= xk - 5.0f && pt.x < xk + textWidth ("keep") + 6.0f) return onKeep;
+            if (pt.x >= xg - 5.0f && pt.x < xg + textWidth ("let go") + 6.0f) return onLetGo;
         }
-        return onNothing;
     }
     for (int i = 0; i < Progression::maxSteps; ++i)
     {
@@ -515,10 +506,10 @@ int HarmonyView::itemAt (juce::Point<float> pt) const
             const auto p = shownProg();
             if (i < p.count)
             {
-                if (pt.y > r.getY() + 30.0f)
+                if (pt.y > r.getBottom() - 18.0f)
                 {
-                    if (pt.x > r.getRight() - 20.0f) return onEditBase + i;
-                    if (! ed && i != playingIndex() && pt.x > r.getRight() - 52.0f) return onNowBase + i;
+                    if (pt.x > r.getRight() - 30.0f) return onEditBase + i;
+                    if (! ed && i != playingIndex() && pt.x > r.getRight() - 62.0f) return onNowBase + i;
                 }
                 if (! ed && ! staying() && pt.x > r.getRight() - 20.0f && pt.y < r.getY() + 20.0f) return onLoopBase + i;
             }
@@ -576,7 +567,7 @@ bool HarmonyView::keysLayout (juce::String& name, float& xName, float& xKeep, fl
     ChordStep c;
     if (proc.isEditingNext() || ! proc.getKeysChord (c)) return false;
     name = chordName (keyShown(), c) + (c.oct != 0 ? " " + octText (c.oct) : juce::String());
-    xName = keyNameX() + 60.0f + textWidth ("keys") + 10.0f;
+    xName = 12.0f + labelWidth ("keys", 8.0f) + 10.0f;
     xKeep = xName + textWidth (name) + 18.0f;
     xLetGo = xKeep + textWidth ("keep") + 14.0f;
     return true;
@@ -867,7 +858,11 @@ void SourcesView::paint (juce::Graphics& g)
         juce::String name = nameOf (i);
         juce::Colour c = col::ink;
         float x = nameX();
-        if (mode == Mode::drones) text (g, r == 0 ? "from" : "under", 0.0f, y, col::dim (0.3f), 11.0f);
+        // A row of the table: a step up from the panel, a rule underneath.
+        g.setColour (over || (r == hover && (hoverPlays || hoverNote)) ? col::raised : juce::Colour (0xff0D0D0D));
+        g.fillRect (0.0f, (float) (r * rowH), (float) getWidth(), (float) rowH - 1.0f);
+        ruleH (g, 0.0f, (float) getWidth(), (float) (r * rowH + rowH - 1), col::faint);
+        if (mode == Mode::drones) label (g, r == 0 ? "from" : "under", 6.0f, y + 2.0f, col::dim (0.45f), 7.0f);
 
         const auto id = proc.getSlotSourceId (i);
         bool quiet = false;
@@ -946,8 +941,8 @@ void SourcesView::paint (juce::Graphics& g)
 
         // The sound itself, and where it is being read.
         const auto sr = stripRect (r);
-        const float mid = sr.getCentreY();
-        g.setColour (col::dim (0.09f));
+        const float mid = std::round (sr.getCentreY());
+        g.setColour (col::faint);
         g.fillRect (sr.getX(), mid, sr.getWidth(), 1.0f);
         auto* src = proc.engine.getPlayingSource (i);
         if (id == "none" || id.isEmpty() || src == nullptr || src->id != id) continue;
@@ -973,18 +968,24 @@ void SourcesView::paint (juce::Graphics& g)
         }
         else
         {
+            // A pixel waveform: columns of stacked 2-pixel cells, mirrored about the middle.
             float mx = 1.0e-4f;
             for (float pk : src->peaks) mx = juce::jmax (mx, pk);
-            const int cols = juce::jmax (1, (int) (sr.getWidth() / 2.0f)), bins = (int) src->peaks.size();
+            const int cols = juce::jmax (1, (int) (sr.getWidth() / 3.0f)), bins = (int) src->peaks.size();
             for (int cI = 0; cI < cols; ++cI)
             {
                 const float f0 = (float) cI / (float) cols, f1 = (float) (cI + 1) / (float) cols;
                 float pk = 0.0f;
                 for (int b = (int) (f0 * (float) bins); b <= juce::jmin (bins - 1, (int) (f1 * (float) bins)); ++b) pk = juce::jmax (pk, src->peaks[(size_t) b]);
-                const float h = juce::jmax (1.0f, std::sqrt (pk / mx) * sr.getHeight());
+                const int cells = juce::jmax (1, juce::roundToInt (std::sqrt (pk / mx) * (sr.getHeight() * 0.5f) / 3.0f));
                 const bool inside = isTexture && f1 >= wa && f0 <= wb;
-                g.setColour (col::ink.withAlpha ((inside ? 0.62f : 0.2f) * fade));
-                g.fillRect (sr.getX() + (float) cI * 2.0f, mid - h * 0.5f, 1.0f, h);
+                g.setColour (inside ? col::ink.withAlpha (0.9f * fade) : juce::Colour (0xff4A4A4A).withMultipliedAlpha (fade));
+                const float cx = sr.getX() + (float) cI * 3.0f;
+                for (int k = 0; k < cells; ++k)
+                {
+                    g.fillRect (cx, mid - 2.0f - (float) k * 3.0f, 2.0f, 2.0f);
+                    g.fillRect (cx, mid + 1.0f + (float) k * 3.0f, 2.0f, 2.0f);
+                }
             }
         }
 
@@ -992,12 +993,11 @@ void SourcesView::paint (juce::Graphics& g)
         {
             // The window the grains are cut from. Drag it.
             const bool live = (hover == r && hoverStrip) || dragRow == r || (dragAll && dragRow >= 0);
-            const float ax = sr.getX() + wa * sr.getWidth(), bx = sr.getX() + wb * sr.getWidth();
-            g.setColour (col::accent.withAlpha (live ? 0.16f : 0.09f));
-            g.fillRect (ax, sr.getY(), bx - ax, sr.getHeight());
-            g.setColour (col::accent.withAlpha ((live ? 0.95f : 0.55f) * fade));
-            g.fillRect (ax, sr.getY(), 1.0f, sr.getHeight());
-            g.fillRect (bx - 1.0f, sr.getY(), 1.0f, sr.getHeight());
+            const float ax = std::round (sr.getX() + wa * sr.getWidth()), bx = std::round (sr.getX() + wb * sr.getWidth());
+            dither (g, { ax, sr.getY(), bx - ax, sr.getHeight() }, 0.12f, live ? 0.35f : 0.18f);
+            g.setColour (col::bright.withAlpha ((live ? 1.0f : 0.6f) * fade));
+            g.fillRect (ax, sr.getY(), 2.0f, sr.getHeight());
+            g.fillRect (bx - 2.0f, sr.getY(), 2.0f, sr.getHeight());
             // Each grain as it is cut.
             for (auto& f : flashes)
             {
@@ -1005,20 +1005,20 @@ void SourcesView::paint (juce::Graphics& g)
                 const float t = 1.0f - f.age / 0.7f;
                 const float fx = sr.getX() + juce::jlimit (0.0f, 1.0f, f.x) * sr.getWidth();
                 const float fw = juce::jlimit (1.5f, sr.getRight() - fx, f.span * sr.getWidth());
-                g.setColour (col::ink.withAlpha (0.22f * t * t));
-                g.fillRect (fx, sr.getY(), fw, sr.getHeight());
-                g.setColour (col::ink.withAlpha (0.85f * t * t));
-                g.fillRect (fx, sr.getY(), 1.0f, sr.getHeight());
+                dither (g, { std::round (fx), sr.getY(), std::round (fw), sr.getHeight() }, 0.5f, 0.5f * t * t);
+                g.setColour (col::bright.withAlpha (0.9f * t * t));
+                g.fillRect (std::round (fx), sr.getY(), 2.0f, sr.getHeight());
             }
         }
         else if (running && ! quiet)
         {
             // Where the drones are listening, or the bed is playing, right now.
-            const float px = sr.getX() + juce::jlimit (0.0f, 1.0f, proc.engine.getReadPos (i)) * sr.getWidth();
-            g.setGradientFill (juce::ColourGradient (col::accent.withAlpha (0.0f), px - 26.0f, 0.0f, col::accent.withAlpha (0.16f), px, 0.0f, false));
-            g.fillRect (juce::jmax (sr.getX(), px - 26.0f), sr.getY(), px - juce::jmax (sr.getX(), px - 26.0f), sr.getHeight());
-            g.setColour (col::accent.withAlpha (0.85f));
-            g.fillRect (px, sr.getY(), 1.0f, sr.getHeight());
+            // The read head, with a short dithered trail behind it.
+            const float px = std::round (sr.getX() + juce::jlimit (0.0f, 1.0f, proc.engine.getReadPos (i)) * sr.getWidth());
+            const float tx = juce::jmax (sr.getX(), px - 24.0f);
+            dither (g, { tx, sr.getY(), px - tx, sr.getHeight() }, 0.25f, 0.45f);
+            g.setColour (col::bright);
+            g.fillRect (px, sr.getY(), 2.0f, sr.getHeight());
         }
     }
 }
@@ -1291,10 +1291,7 @@ void SourcesView::rootMenu (juce::Component& target)
 
 void Picture::panel (juce::Graphics& g) const
 {
-    g.setColour (juce::Colour (0xff0A0A0A));
-    g.fillRect (getLocalBounds());
-    g.setColour (col::dim (0.05f));
-    g.drawRect (getLocalBounds().toFloat(), 1.0f);
+    screen (g, getLocalBounds().toFloat());
 }
 
 static juce::String noteName (float hz)
@@ -1325,6 +1322,8 @@ void TexturePicture::addEvents (const VisEvent* evs, int n)
         d.life = juce::jlimit (0.35f, 6.0f, ev.dur) + 0.3f;
         d.alpha = 0.25f + 0.6f * juce::jlimit (0.0f, 1.0f, ev.near);
         d.age = 0.0f;
+        // Each grain drifts a little, away from the middle, so it leaves a trail.
+        d.vx = (d.u - 0.5f) * 0.08f + (rng.nextFloat() - 0.5f) * 0.06f;
         if (ev.type != evCloud)
         {
             // Detail: small, quick, anywhere.
@@ -1349,21 +1348,25 @@ void TexturePicture::paint (juce::Graphics& g)
     panel (g);
     const auto& eng = proc.engine;
     const bool running = eng.isRunning(), on = eng.isAudible (Engine::stTexture);
-    const float w = (float) getWidth() - 28.0f, left = 14.0f, top = 12.0f, floor = (float) getHeight() - 12.0f;
+    const float W = (float) getWidth(), H = (float) getHeight();
+    const float w = W - 28.0f, left = 14.0f, top = 12.0f, floor = H - 12.0f;
     bool anySound = false;
     for (int k = 0; k < 3; ++k) anySound = anySound || proc.getSlotSourceId (k) != "none";
     if (! anySound)
     {
-        text (g, "pick a sound above", (float) getWidth() * 0.5f, (float) getHeight() * 0.5f - 8.0f, col::dim (0.22f), 10.0f, juce::Justification::centred, 200.0f);
+        label (g, "pick a sound below", W * 0.5f, H * 0.5f - 6.0f, col::dim (0.3f), 8.0f, juce::Justification::centred, 220.0f);
+        scanlines (g, getLocalBounds().toFloat().reduced (1.0f));
         return;
     }
 
     // The texture's own tape: the whole cloud sways with its wow and dims when it drops out.
-    const float sway = eng.getTapeWow (0) * 9.0f, drop = juce::jlimit (0.0f, 1.0f, eng.getTapeDrop (0));
+    const float sway = std::round (eng.getTapeWow (0) * 9.0f), drop = juce::jlimit (0.0f, 1.0f, eng.getTapeDrop (0));
     const float smear = disp (txSmear), space = disp (txSpace), tape = disp (txTape);
     const float layer = (running ? 1.0f : 0.3f) * (on ? 1.0f : 0.25f) * (1.0f - 0.65f * drop);
     g.saveState();
-    g.reduceClipRegion (getLocalBounds().reduced (1));
+    g.reduceClipRegion (getLocalBounds().reduced (4));
+    // The room behind the cloud: a faint dither that thickens with space and smear.
+    dither (g, getLocalBounds().toFloat().reduced (4.0f), space + smear > 1.0f ? 0.25f : 0.12f, (0.04f + 0.1f * space) * layer, std::fmod (time * 6.0f, 4.0f));
     if (layer < 0.999f) g.beginTransparencyLayer (layer);
     for (auto& d : dots)
     {
@@ -1372,19 +1375,23 @@ void TexturePicture::paint (juce::Graphics& g)
         float env = t < 0.15f ? t / 0.15f : 1.0f - (t - 0.15f) / 0.85f;
         if (d.rev) env = t < 0.8f ? t / 0.8f : 1.0f - (t - 0.8f) / 0.2f;
         env = env * env * (3.0f - 2.0f * env);
-        const float dx = left + d.u * w + sway, dy = floor - d.v * (floor - top);
-        const float a = juce::jlimit (0.0f, 1.0f, d.alpha * env);
-        if (d.type == evGlitch) { g.setColour (col::ink.withAlpha (a)); g.fillRect (dx - 3.0f, dy, 6.0f, 1.0f); continue; }
-        if (d.type == evCloud)
+        const float dx = std::round (left + (d.u + d.vx * d.age) * w + sway), dy = std::round (floor - d.v * (floor - top));
+        const float a = juce::jlimit (0.0f, 1.0f, d.alpha * env * 1.2f);
+        if (d.type == evGlitch) { g.setColour (col::bright.withAlpha (a)); g.fillRect (dx - 3.0f, dy, 6.0f, 1.0f); continue; }
+        // A square pixel: bigger for longer grains, and wider the more the cloud is smeared.
+        const float px = d.type == evCloud ? juce::jlimit (2.0f, 5.0f, std::round (d.r * (0.9f + 0.5f * smear))) : (d.type == evDust ? 1.0f : 2.0f);
+        g.setColour (col::bright.withAlpha (a));
+        g.fillRect (dx, dy, px, px);
+        if (d.type == evCloud && std::abs (d.vx) > 0.004f)
         {
-            // A soft light: wider the more the cloud is smeared, and the more of it goes into the room.
-            const float hr = d.r * (3.0f + 4.0f * smear + 6.0f * space);
-            g.setGradientFill (juce::ColourGradient (col::ink.withAlpha (a * (0.16f + 0.1f * space)), dx, dy, col::ink.withAlpha (0.0f), dx + hr, dy, true));
-            g.fillEllipse (dx - hr, dy - hr, hr * 2.0f, hr * 2.0f);
+            // Its trail: a few fainter pixels behind it, the way it came.
+            const float dir = d.vx > 0.0f ? -1.0f : 1.0f;
+            for (int k = 1; k <= 3; ++k)
+            {
+                g.setColour (col::bright.withAlpha (a * 0.45f / (float) k));
+                g.fillRect (dx + dir * (float) k * (px + 2.0f), dy, px, px);
+            }
         }
-        const float cr = d.type == evCloud ? d.r * (0.45f + 0.35f * env) : d.r;
-        g.setColour (col::ink.withAlpha (a * 0.9f));
-        g.fillEllipse (dx - cr, dy - cr, cr * 2.0f, cr * 2.0f);
     }
     if (running && tape > 0.2f)
     {
@@ -1393,12 +1400,13 @@ void TexturePicture::paint (juce::Graphics& g)
         const int specks = (int) (tape * tape * 20.0f);
         for (int i = 0; i < specks; ++i)
         {
-            g.setColour (col::ink.withAlpha (0.05f + 0.16f * r.nextFloat()));
-            g.fillRect (left + r.nextFloat() * w, top + r.nextFloat() * (floor - top), 1.0f, 1.0f);
+            g.setColour (col::bright.withAlpha (0.08f + 0.2f * r.nextFloat()));
+            g.fillRect (std::round (left + r.nextFloat() * w), std::round (top + r.nextFloat() * (floor - top)), 1.0f, 1.0f);
         }
     }
     if (layer < 0.999f) g.endTransparencyLayer();
     g.restoreState();
+    scanlines (g, getLocalBounds().toFloat().reduced (1.0f));
 }
 
 DronesPicture::DronesPicture (GrainFieldProcessor& p) : Picture (p)
@@ -1412,69 +1420,53 @@ void DronesPicture::paint (juce::Graphics& g)
     const auto& eng = proc.engine;
     const bool running = eng.isRunning(), on = eng.isAudible (Engine::stDrones), bedOn = eng.isAudible (Engine::stBed);
     const float W = (float) getWidth(), H = (float) getHeight();
-    const float top = 12.0f, floor = H - 16.0f, xA = 12.0f, xB = W - 42.0f;
+    const float top = 12.0f, floor = H - 16.0f, xA = 12.0f, xB = W - 46.0f;
     if (proc.getSlotSourceId (slotTone) == "none" && proc.getSlotSourceId (slotBed) == "none")
     {
-        text (g, "pick a sound above", W * 0.5f, H * 0.5f - 8.0f, col::dim (0.22f), 10.0f, juce::Justification::centred, 200.0f);
+        label (g, "pick a sound below", W * 0.5f, H * 0.5f - 6.0f, col::dim (0.3f), 8.0f, juce::Justification::centred, 220.0f);
+        scanlines (g, getLocalBounds().toFloat().reduced (1.0f));
         return;
     }
     const float drop = juce::jlimit (0.0f, 1.0f, eng.getTapeDrop (1)), wow = eng.getTapeWow (1);
-    const float tape = disp (drTape), space = disp (drSpace), mass = eng.getMass();
+    const float tape = disp (drTape), space = disp (drSpace);
     g.saveState();
-    g.reduceClipRegion (getLocalBounds().reduced (1));
+    g.reduceClipRegion (getLocalBounds().reduced (4));
     if (! running) g.beginTransparencyLayer (0.3f);
+    const float phase = std::fmod (time * 5.0f, 4.0f);
 
-    // The bed: a low glow along the floor.
+    // The bed: a dithered floor, as thick as it is loud.
     if (proc.getSlotSourceId (slotBed) != "none")
     {
         const float bed = disp (drBed) * (bedOn ? 1.0f : 0.2f);
-        g.setGradientFill (juce::ColourGradient (col::ink.withAlpha (0.02f + 0.11f * bed), 0.0f, H, col::ink.withAlpha (0.0f), 0.0f, H - 30.0f, false));
-        g.fillRect (1.0f, H - 30.0f, W - 2.0f, 29.0f);
+        dither (g, { 4.0f, H - 26.0f, W - 8.0f, 22.0f }, bed > 0.5f ? 0.25f : 0.12f, 0.15f + 0.35f * bed, phase);
     }
-    // Merge: the texture coming in from next door.
+    // Merge: the texture coming in from the strip next door, as a dithered edge on the left.
     const float merge = disp (txFeed) * juce::jmin (1.0f, eng.getEventRate() / 4.0f);
-    if (merge > 0.02f)
-    {
-        g.setGradientFill (juce::ColourGradient (col::ink.withAlpha (0.09f * merge), 0.0f, 0.0f, col::ink.withAlpha (0.0f), 90.0f, 0.0f, false));
-        g.fillRect (1.0f, 1.0f, 90.0f, H - 2.0f);
-    }
+    if (merge > 0.02f) dither (g, { 4.0f, 4.0f, 60.0f, H - 8.0f }, 0.12f, 0.35f * merge, phase);
 
     const float layer = (on ? 1.0f : 0.25f) * (1.0f - 0.65f * drop);
     if (layer < 0.999f) g.beginTransparencyLayer (layer);
     struct Label { float y; juce::String n; float a; };
     std::vector<Label> labels;
-    // A line that comes out of nothing at each end, without a visible corner where it gets there.
-    auto fadeEnds = [&] (juce::Colour c, float alpha)
-    {
-        juce::ColourGradient gr (c.withAlpha (0.0f), xA, 0.0f, c.withAlpha (0.0f), xB, 0.0f, false);
-        static const float knee[5][2] = { { 0.04f, 0.1f }, { 0.08f, 0.35f }, { 0.12f, 0.68f }, { 0.16f, 0.9f }, { 0.2f, 1.0f } };
-        for (auto& k : knee)
-        {
-            gr.addColour ((double) k[0], c.withAlpha (alpha * k[1]));
-            gr.addColour (1.0 - (double) k[0], c.withAlpha (alpha * k[1]));
-        }
-        return gr;
-    };
     auto voiceLine = [&] (int v, float hz, float a)
     {
         if (a < 0.01f) return;
         const float midi = 69.0f + 12.0f * std::log2 (juce::jmax (hz, 1.0f) / 440.0f);
         // The drones' own tape: every line wavers a little, each its own way.
         const float waver = wow * (1.5f + 3.0f * tape) * (v % 2 == 0 ? 1.0f : -0.7f);
-        const float vy = juce::jlimit (top, floor, juce::jmap (midi, 26.0f, 88.0f, floor, top + 2.0f) + waver);
-        const float th = 0.8f + 2.0f * a;
-        const juce::Colour vc = v == Engine::lineVoice ? col::accent : col::ink;
-        // A soft light round each voice: wider when it's loud, and the more of it goes into the room.
-        const float halo = (5.0f + 9.0f * a) * (0.6f + 0.9f * space), peak = 0.03f + 0.08f * a;
-        for (int k = 1; k <= 6; ++k)
-        {
-            const float off = halo * (float) k / 6.0f, fall = 1.0f - (float) k / 7.0f;
-            g.setGradientFill (fadeEnds (vc, peak * fall * fall));
-            g.fillRect (xA, vy - off - halo / 12.0f, xB - xA, halo / 6.0f);
-            g.fillRect (xA, vy + off - halo / 12.0f, xB - xA, halo / 6.0f);
-        }
-        g.setGradientFill (fadeEnds (vc, 0.1f + 0.7f * a));
-        g.fillRect (xA, vy - th * 0.5f, xB - xA, th);
+        const float vy = std::round (juce::jlimit (top, floor, juce::jmap (midi, 26.0f, 88.0f, floor, top + 2.0f) + waver));
+        // A dithered band round each voice that breathes: wider when it's loud, and the more of it goes into the room.
+        const float breath = 0.75f + 0.25f * std::sin (time * 0.9f + (float) v * 1.7f);
+        const float band = std::round ((4.0f + 8.0f * a) * (0.7f + 0.8f * space));
+        dither (g, { xA, vy - band, xB - xA, band * 2.0f + 2.0f }, a > 0.5f ? 0.5f : 0.25f, (0.1f + 0.3f * a) * breath, phase + (float) v);
+        // The voice itself: a pixel line, dashed for the melody, its ends broken into dither.
+        g.setColour (col::bright.withAlpha (juce::jlimit (0.0f, 1.0f, 0.25f + 0.75f * a)));
+        const float th = a > 0.5f ? 2.0f : 1.0f;
+        if (v == Engine::lineVoice)
+            for (float x = xA + 16.0f; x < xB - 16.0f; x += 6.0f) g.fillRect (x, vy, 4.0f, th);
+        else g.fillRect (xA + 16.0f, vy, xB - xA - 32.0f, th);
+        dither (g, { xA, vy, 16.0f, th }, 0.5f, 0.7f * a);
+        dither (g, { xB - 16.0f, vy, 16.0f, th }, 0.5f, 0.7f * a);
         if (a > 0.08f) labels.push_back ({ vy, noteName (hz), a });
     };
     const float halfPi = juce::MathConstants<float>::halfPi;
@@ -1490,23 +1482,38 @@ void DronesPicture::paint (juce::Graphics& g)
         }
         else voiceLine (v, eng.getVoiceHz (v), a);
     }
+    if (layer < 0.999f) g.endTransparencyLayer();
+    // Each voice's note in a small box at the end of its line.
     std::sort (labels.begin(), labels.end(), [] (const Label& l1, const Label& l2) { return l1.y < l2.y; });
     float lastY = -100.0f;
     for (auto& l : labels)
-        if (l.y - lastY >= 11.0f)
+        if (l.y - lastY >= 15.0f)
         {
-            text (g, l.n, xB + 10.0f, l.y - 6.0f, col::dim (0.2f + 0.3f * l.a), 9.0f);
+            const auto r = juce::Rectangle<float> (xB + 6.0f, l.y - 7.0f, 34.0f, 14.0f);
+            g.setColour (col::bg);
+            g.fillRect (r);
+            g.setColour (juce::Colour (0xff5A5A5A).withMultipliedAlpha (0.4f + 0.6f * l.a));
+            g.drawRect (r, 1.0f);
+            text (g, l.n, r.getCentreX(), r.getY() - 2.0f, col::bright.withAlpha (0.4f + 0.6f * l.a), 10.0f, juce::Justification::centred, r.getWidth());
             lastY = l.y;
         }
-    juce::ignoreUnused (mass);
-    if (layer < 0.999f) g.endTransparencyLayer();
     if (! running) g.endTransparencyLayer();
     g.restoreState();
+    scanlines (g, getLocalBounds().toFloat().reduced (1.0f));
 }
 
 OutputPicture::OutputPicture (GrainFieldProcessor& p) : Picture (p)
 {
-    setHint (*this, "output", "Where texture and drones come together. The core is how loud it is, warmer with drive; the rings are the room; the dots trailing off are the echo");
+    setHint (*this, "output", "The hand-over: grains cross from the texture into the drones as far as merge lets them. The square rings are the room, the core is how loud it is with the echo rising off it, and the meter on the right is the level going out");
+}
+
+void OutputPicture::advance (float dt)
+{
+    // The meter follows the level, and its peak holds for a moment before it falls back.
+    const float lv = juce::jlimit (0.0f, 1.0f, proc.engine.getLevel() * 4.0f) * (proc.engine.isRunning() ? 1.0f : 0.0f);
+    meter = lv > meter ? lv : meter + (lv - meter) * juce::jmin (1.0f, dt * 6.0f);
+    if (meter >= peak) { peak = meter; peakAge = 0.0f; }
+    else if ((peakAge += dt) > 1.2f) peak = juce::jmax (meter, peak - dt * 0.5f);
 }
 
 void OutputPicture::paint (juce::Graphics& g)
@@ -1519,45 +1526,76 @@ void OutputPicture::paint (juce::Graphics& g)
     const float level = juce::jlimit (0.0f, 1.0f, eng.getLevel() * 4.0f) * (running ? 1.0f : 0.0f);
     const float drive = disp (outDrive), size = disp (spSize), echo = disp (spEcho);
     const float space = juce::jmax (disp (txSpace), disp (drSpace));
-    const float cx = W * 0.4f, cy = H * 0.5f;
-    const float maxR = juce::jmax (20.0f, juce::jmin (cx - 10.0f, cy - 12.0f, 130.0f));
+    const float merge = disp (txFeed) * juce::jmin (1.0f, eng.getEventRate() / 4.0f);
+    const float meterW = 8.0f, mx = W - 10.0f - meterW;          // the meter, along the right edge
+    const float cx = std::round ((W - meterW - 8.0f) * 0.5f), cy = std::round (H * 0.38f);
     g.saveState();
-    g.reduceClipRegion (getLocalBounds().reduced (1));
+    g.reduceClipRegion (getLocalBounds().reduced (4));
     if (! running) g.beginTransparencyLayer (0.35f);
+    const float phase = std::fmod (time * 5.0f, 4.0f);
 
-    // The room: a haze as big as the room, and slow rings opening out through it.
-    const float radius = maxR * (0.4f + 0.6f * size), dim = outside ? 0.45f : 1.0f;
-    const float hazeA = (0.02f + 0.09f * space) * dim * (0.75f + 0.25f * std::sin (time * 0.4f));
-    g.setGradientFill (juce::ColourGradient (col::ink.withAlpha (hazeA), cx, cy, col::ink.withAlpha (0.0f), cx + radius, cy, true));
-    g.fillEllipse (cx - radius, cy - radius, radius * 2.0f, radius * 2.0f);
-    const float ringA = (0.04f + 0.16f * space) * dim;
+    // The room: square rings of dither opening out from the core, as big as the room, as bright as the space.
+    const float maxR = juce::jmin (cx - 10.0f, cy - 10.0f), radius = maxR * (0.45f + 0.55f * size);
+    const float ringA = (0.15f + 0.45f * space) * (outside ? 0.45f : 1.0f);
     for (int i = 0; i < 3; ++i)
     {
         float ph = time * (0.11f / (0.5f + size)) + (float) i / 3.0f;
         ph -= std::floor (ph);
-        const float rr = 5.0f + ph * (radius - 5.0f);
-        g.setColour (col::ink.withAlpha (ringA * (1.0f - ph) * (1.0f - ph) * juce::jmin (1.0f, ph * 8.0f)));
-        g.drawEllipse (cx - rr, cy - rr, rr * 2.0f, rr * 2.0f, 1.0f);
+        const float rr = std::round (8.0f + ph * (radius - 8.0f));
+        const float a = ringA * (1.0f - ph) * juce::jmin (1.0f, ph * 6.0f);
+        const float th = 3.0f;
+        dither (g, { cx - rr, cy - rr, rr * 2.0f, th }, 0.5f, a, phase);
+        dither (g, { cx - rr, cy + rr - th, rr * 2.0f, th }, 0.5f, a, phase);
+        dither (g, { cx - rr, cy - rr, th, rr * 2.0f }, 0.5f, a, phase);
+        dither (g, { cx + rr - th, cy - rr, th, rr * 2.0f }, 0.5f, a, phase);
     }
 
-    // The echo: the sound again and again, fainter each time.
+    // The echo: repeats rising off the core, fainter each time.
     const int echoes = juce::roundToInt (echo * 5.0f);
-    const float gapX = juce::jmin (24.0f, (W - cx - 14.0f) / 5.5f);
     for (int i = 1; i <= echoes; ++i)
     {
-        const float fall = std::pow (0.68f, (float) i);
-        dot (g, cx + gapX * (float) i, cy, juce::jmax (1.0f, (2.2f + 2.5f * level) * std::pow (0.85f, (float) i)), col::ink.withAlpha ((0.25f + 0.5f * level) * fall));
+        const float rise = std::fmod (time * 9.0f, 12.0f);
+        g.setColour (col::bright.withAlpha ((0.25f + 0.5f * level) * std::pow (0.62f, (float) i)));
+        g.fillRect (cx - 2.0f, cy - 10.0f - (float) i * 12.0f - rise, 4.0f, 4.0f);
     }
 
-    // The core: everything together. Brighter and bigger when it's loud, warmer with drive.
-    const juce::Colour core = col::ink.interpolatedWith (col::accent, juce::jmin (1.0f, drive * 1.25f));
-    const float cr = 12.0f + 26.0f * level + 10.0f * drive;
-    g.setGradientFill (juce::ColourGradient (core.withAlpha (0.10f + 0.5f * level), cx, cy, core.withAlpha (0.0f), cx + cr, cy, true));
-    g.fillEllipse (cx - cr, cy - cr, cr * 2.0f, cr * 2.0f);
-    dot (g, cx, cy, 2.0f + 3.0f * level, core.withAlpha (0.55f + 0.45f * level));
+    // The core: everything together, bigger when it's loud, with a dithered halo that grows with drive.
+    const float core = std::round (6.0f + 12.0f * level), halo = std::round (core + 6.0f + 14.0f * drive);
+    dither (g, { cx - halo * 0.5f, cy - halo * 0.5f, halo, halo }, drive > 0.5f ? 0.5f : 0.25f, 0.2f + 0.5f * level, phase);
+    g.setColour (col::bright.withAlpha (0.5f + 0.5f * level));
+    g.fillRect (cx - core * 0.5f, cy - core * 0.5f, core, core);
 
-    if (outside) text (g, "the room goes to send", W * 0.5f, H - 22.0f, col::dim (0.32f), 9.0f, juce::Justification::centred, W - 10.0f);
+    // Grains crossing from the texture (left) to the drones (right), sinking toward the drones' floor.
+    const int crossing = juce::roundToInt (merge * 14.0f);
+    const float lane = mx - 8.0f;
+    for (int i = 0; i < crossing; ++i)
+    {
+        const float sp = 18.0f + 9.0f * (float) (i % 4);
+        const float x = std::fmod ((float) i * 23.0f + time * sp, lane);
+        const float y0 = 20.0f + std::fmod ((float) i * 37.0f, H * 0.5f);
+        const float u = x / lane, y = std::round (y0 + (H - 40.0f - y0) * u * u);
+        for (int k = 0; k < 3; ++k)
+        {
+            g.setColour (col::bright.withAlpha (k == 0 ? 0.85f : 0.35f / (float) k));
+            g.fillRect (std::round (6.0f + x) - (float) k * 4.0f, y, 2.0f, 2.0f);
+        }
+    }
     if (! running) g.endTransparencyLayer();
     g.restoreState();
+
+    // The meter: stacked cells; the top few turn red near clipping, and the peak holds.
+    const int cells = juce::jmax (8, (int) ((H - 40.0f) / 5.0f));
+    const int on = juce::roundToInt (meter * (float) cells), pk = juce::roundToInt (peak * (float) cells);
+    for (int c = 0; c < cells; ++c)
+    {
+        const bool lit = c < on, isPeak = c == juce::jmin (cells - 1, pk) && peak > 0.02f;
+        const bool hot = c >= cells - 3;
+        g.setColour (lit ? (hot ? col::rec : col::ink) : (isPeak ? juce::Colour (0xff8A8A8A) : col::faint));
+        g.fillRect (mx, H - 22.0f - (float) c * 5.0f, meterW, 3.0f);
+    }
+    label (g, "out", mx + meterW * 0.5f, H - 17.0f, col::dim (0.5f), 7.0f, juce::Justification::centred, 30.0f);
+    label (g, outside ? "room to send" : "texture > drones", (W - meterW) * 0.5f, H - 17.0f, col::dim (0.45f), 7.0f, juce::Justification::centred, W - meterW - 16.0f);
+    scanlines (g, getLocalBounds().toFloat().reduced (1.0f));
 }
+
 } // namespace gf::ui

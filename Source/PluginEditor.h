@@ -45,6 +45,7 @@ private:
     GrainFieldProcessor& proc;
     gf::ui::LookAndFeel lnf;
     Canvas canvas;
+    Canvas overlay;   // on top of every control: the names set into the bays' borders
 
     gf::ui::ScenesView scenesView;
     gf::ui::HarmonyView harmony;
@@ -69,13 +70,14 @@ private:
     double statusUntil = 0.0, lastTick = 0.0;
     bool sized = false;
 
-    // The layout, in the canvas's own units.
+    // The layout, in the canvas's own units: bays of controls, the three modules, their tables and knob grids.
     float W = (float) baseW, H = (float) baseH, scale = 1.0f;
-    enum { fHeader, fTransport, fScenes, fTexture, fDrones, fTape, fSwell, fFooter, numFrames };
-    std::array<juce::Rectangle<float>, numFrames> frames;
-    float outTitleX = 0.0f, titleY = 0.0f, seamY = 0.0f;
-    juce::Rectangle<float> seam1, seam2;   // the gaps between the pictures, where one module hands over to the next
-    int hoverFrame = -1;
+    struct Plate { float x, y; juce::String name; };
+    std::vector<juce::Rectangle<float>> bays;
+    std::vector<Plate> plates;
+    std::array<juce::Rectangle<float>, 3> modules, grids;
+    std::array<juce::Rectangle<float>, 2> tables;
+    juce::Rectangle<float> titleCell, versionCell, footer;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (GrainFieldEditor)
 };

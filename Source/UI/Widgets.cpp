@@ -114,56 +114,37 @@ void ParamControl::tick()
 
 /* ---------------- Knob ---------------- */
 
-Knob::Knob (GrainFieldProcessor& p, int sp, const juce::String& l) : ParamControl (p, sp), label (l) {}
-Knob::Knob (GrainFieldProcessor& p, const juce::String& id, const juce::String& l) : ParamControl (p, id), label (l) {}
-
-static juce::Point<float> onRing (juce::Point<float> c, float r, float norm)
-{
-    const float a = juce::MathConstants<float>::pi * (-0.75f + 1.5f * norm);
-    return { c.x + r * std::sin (a), c.y - r * std::cos (a) };
-}
-
-static void arc (juce::Graphics& g, juce::Point<float> c, float r, float from, float to, float thickness, juce::Colour colour)
-{
-    if (to < from) std::swap (from, to);
-    if (to - from < 1.0e-4f) return;
-    const float pi = juce::MathConstants<float>::pi;
-    juce::Path p;
-    p.addCentredArc (c.x, c.y, r, r, 0.0f, pi * (-0.75f + 1.5f * from), pi * (-0.75f + 1.5f * to), true);
-    g.setColour (colour);
-    g.strokePath (p, juce::PathStrokeType (thickness, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-}
+Knob::Knob (GrainFieldProcessor& p, int sp, const juce::String& l) : ParamControl (p, sp), name (l) {}
+Knob::Knob (GrainFieldProcessor& p, const juce::String& id, const juce::String& l) : ParamControl (p, id), name (l) {}
 
 void Knob::paint (juce::Graphics& g)
 {
-    const juce::Point<float> c ((float) getWidth() * 0.5f, 16.0f);
-    const float r = 12.0f, n = getNorm(), d = getDisplayNorm();
-    const bool ed = editingNext();
-    const juce::Colour main = ed ? col::dim (0.6f) : (sceneParam >= 0 && swellMoves (sceneParam) ? col::accent : col::ink);
+    // A cell of its own: the name, a pixel knob, the value. Values Swell moves are drawn at full brightness,
+    // and while the sound is somewhere else (Swell travelling, a blend) the tip blinks.
+    const float w = (float) getWidth(), h = (float) getHeight(), n = getNorm(), d = getDisplayNorm();
+    const bool ed = editingNext(), swells = sceneParam >= 0 && swellMoves (sceneParam);
+    const bool moving = ! ed && std::abs (d - n) > 0.015f;
+    const bool blink = (juce::Time::getMillisecondCounter() / 300) % 2 == 0;
+    g.setColour (hover || dragging ? col::raised : col::cell);
+    g.fillRect (getLocalBounds());
+    ruleV (g, w - 1.0f, 0.0f, h);
+    ruleH (g, 0.0f, w, h - 1.0f);
 
-    arc (g, c, r, 0.0f, 1.0f, 1.0f, col::dim (hover || dragging ? 0.28f : 0.18f));
-    arc (g, c, r, 0.0f, n, 1.5f, main);
-
-    if (! ed && std::abs (d - n) > 0.015f)
+    const juce::Colour lit = ed ? col::dim (0.45f) : (swells ? col::bright : juce::Colour (0xffBDBDBD));
+    const juce::Colour tip = moving && blink ? col::dim (0.35f) : (ed ? col::dim (0.6f) : col::bright);
+    const float knobPx = 33.0f;
+    if (horizontal)
     {
-        // Where the sound really is.
-        arc (g, c, r + 3.5f, n, d, 1.0f, main.withAlpha (0.35f));
-        const auto pd = onRing (c, r + 3.5f, d);
-        g.setColour (main.withAlpha (0.8f));
-        g.drawEllipse (pd.x - 1.8f, pd.y - 1.8f, 3.6f, 3.6f, 1.0f);
+        const float ky = std::round ((h - knobPx) * 0.5f);
+        pixelKnob (g, 8.0f, ky, moving ? d : n, lit, tip);
+        label (g, name, 8.0f + knobPx + 8.0f, h * 0.5f - 13.0f, col::dim (0.55f), 7.0f);
+        text (g, valueText(), 8.0f + knobPx + 8.0f, h * 0.5f - 2.0f, hover || dragging ? col::bright : col::ink, 11.0f);
+        return;
     }
-
-    const auto pn = onRing (c, r, n);
-    if (ed)
-    {
-        g.setColour (main);
-        g.drawEllipse (pn.x - 2.0f, pn.y - 2.0f, 4.0f, 4.0f, 1.0f);
-    }
-    else dot (g, pn.x, pn.y, 2.0f, main);
-
-    const float w = (float) getWidth();
-    text (g, label, w * 0.5f, 35.0f, ed ? col::dim (0.75f) : col::ink, 10.0f, juce::Justification::centred, w);
-    text (g, valueText(), w * 0.5f, 49.0f, col::dim (hover || dragging ? 0.75f : 0.4f), 10.0f, juce::Justification::centred, w);
+    label (g, name, w * 0.5f, 5.0f, col::dim (0.55f), 7.0f, juce::Justification::centred, w);
+    pixelKnob (g, std::round ((w - knobPx) * 0.5f), 16.0f, moving ? d : n, lit, tip);
+    text (g, valueText(), w * 0.5f, 49.0f, hover || dragging ? col::bright : (swells && ! ed ? col::bright : col::ink), 10.0f,
+          juce::Justification::centred, w);
 }
 
 /* ---------------- HairSlider ---------------- */
@@ -177,8 +158,9 @@ HairSlider::HairSlider (GrainFieldProcessor& p, const juce::String& id, const ju
 
 juce::Rectangle<float> HairSlider::track() const
 {
-    const float x0 = caption.isEmpty() ? 4.0f : textWidth (caption, 11.0f) + 10.0f;
-    return { x0, (float) getHeight() * 0.5f, (float) getWidth() - x0 - 4.0f, 1.0f };
+    const float x0 = caption.isEmpty() ? 2.0f : labelWidth (caption, 7.0f) + 10.0f;
+    const float h = 8.0f;
+    return { x0, std::round (((float) getHeight() - h) * 0.5f), (float) getWidth() - x0 - 2.0f, h };
 }
 
 float HairSlider::dragToNorm (const juce::MouseEvent& e, float)
@@ -189,23 +171,14 @@ float HairSlider::dragToNorm (const juce::MouseEvent& e, float)
 
 void HairSlider::paint (juce::Graphics& g)
 {
+    // A level as a row of square segments.
     const auto t = track();
     const float n = getNorm();
-    const bool ed = editingNext();
+    const bool ed = editingNext(), active = hover || dragging;
     if (caption.isNotEmpty())
-        text (g, caption, 0.0f, t.getY() - 7.5f, col::dim (hover || dragging ? 0.7f : 0.4f), 11.0f);
-    g.setColour (col::dim (0.2f));
-    g.fillRect (t);
-    const juce::Colour main = ed ? col::dim (0.6f) : col::ink;
-    g.setColour (main);
-    g.fillRect (t.withWidth (t.getWidth() * n));
-    const float x = t.getX() + t.getWidth() * n;
-    if (ed)
-        g.drawEllipse (x - 3.0f, t.getY() - 3.0f, 6.0f, 6.0f, 1.0f);
-    else
-        dot (g, x, t.getY() + 0.5f, hover || dragging ? 4.0f : 3.5f, main);
-    if (hover || dragging)
-        text (g, valueText(), t.getRight(), t.getY() + 4.0f, col::dim (0.5f), 9.0f, juce::Justification::centredRight, 80.0f);
+        label (g, caption, 0.0f, t.getCentreY() - 6.0f, col::dim (active ? 0.8f : 0.5f), 7.0f);
+    const int segs = juce::jlimit (6, 16, (int) (t.getWidth() / 7.0f));
+    segBar (g, t, n, segs, ed ? col::dim (0.5f) : (active ? col::bright : juce::Colour (0xffBDBDBD)));
 }
 
 /* ---------------- DragNumber ---------------- */
@@ -218,14 +191,9 @@ DragNumber::DragNumber (GrainFieldProcessor& p, int sp, const juce::String& w) :
 void DragNumber::paint (juce::Graphics& g)
 {
     const bool active = hover || dragging;
-    const juce::String s = word + " " + juce::String (juce::roundToInt (getNorm() * 100.0f));
-    text (g, s, (float) getWidth() * 0.5f, 0.0f, editingNext() ? col::dim (0.6f) : col::dim (active ? 0.9f : 0.45f), 10.0f,
-          juce::Justification::centred, (float) getWidth());
-    if (active)
-    {
-        g.setColour (col::dim (0.3f));
-        g.fillRect ((float) getWidth() * 0.5f - 12.0f, (float) getHeight() - 2.0f, 24.0f, 1.0f);
-    }
+    label (g, word, 0.0f, 0.0f, col::dim (0.5f), 7.0f);
+    text (g, juce::String (juce::roundToInt (getNorm() * 100.0f)), labelWidth (word, 7.0f) + 6.0f, -3.0f,
+          editingNext() ? col::dim (0.6f) : (active ? col::bright : col::ink), 11.0f);
 }
 
 /* ---------------- SwellLine ---------------- */
@@ -239,13 +207,9 @@ float SwellLine::dragToNorm (const juce::MouseEvent& e, float)
 
 SwellLine::Zone SwellLine::zoneAt (juce::Point<float> pt) const
 {
-    const float y = lineYpos;
-    if (pt.y >= y + 12.0f && pt.y < y + 32.0f)
-    {
-        if (pt.x >= lineX - 4.0f && pt.x < lineX + 44.0f) return onQuiet;
-        if (pt.x >= lineX + lineW() - 40.0f && pt.x < lineX + lineW() + 6.0f) return onWall;
-    }
-    if (std::abs (pt.y - y) <= 12.0f && pt.x >= lineX - 8.0f && pt.x <= lineX + lineW() + 8.0f) return onLine;
+    if (pt.x < lineX - 2.0f) return onQuiet;
+    if (pt.x >= lineX + lineW() + 2.0f && pt.x < lineX + lineW() + cellW) return onWall;
+    if (pt.x >= lineX - 2.0f && pt.x < lineX + lineW() + 2.0f) return onLine;
     return nowhere;
 }
 
@@ -307,7 +271,7 @@ std::pair<juce::String, juce::String> SwellLine::hintAt (juce::Point<int> pt)
     const auto over = juce::String (" over ") + timeText (proc.getSwellFadeSeconds());
     if (z == onQuiet) return { "fade to quiet", "Click and Swell travels all the way down" + over };
     if (z == onWall) return { "fade to the wall", "Click and Swell travels all the way up" + over };
-    return { "swell", "From almost nothing to a full wall. Drag the handle to move it yourself, or click a point on the line and it travels there" + over };
+    return { "swell", "From almost nothing to a full wall. Drag the handle to move it yourself, or click a point on the bar and it travels there" + over };
 }
 
 void SwellLine::tick()
@@ -317,69 +281,66 @@ void SwellLine::tick()
     std::array<float, numScenes> m {};
     for (int i = 0; i < numScenes; ++i)
         m[(size_t) i] = sc.slots[(size_t) i].used ? sc.slots[(size_t) i].norm[(size_t) pSwell] : -1.0f;
-    const int f = proc.isSwellFading() ? (int) (proc.getSwellFadeRemaining() * 4.0) : -1;
+    const int f = proc.isSwellFading() ? (int) (proc.getSwellFadeRemaining() * 8.0) : -1;
     if (m != marks || f != shownFade) { marks = m; shownFade = f; repaint(); }
 }
 
 void SwellLine::paint (juce::Graphics& g)
 {
-    const float y = lineYpos, n = getNorm(), d = getDisplayNorm();
+    // Cells: quiet, the bar, wall, the value. The bar is solid white blocks up to the handle; while Swell
+    // travels, a dithered stretch shows where it's heading.
+    const float h = (float) getHeight(), n = getNorm(), d = getDisplayNorm();
     const bool ed = editingNext();
-    const juce::Colour main = ed ? col::dim (0.6f) : col::accent;
+    const juce::Colour main = ed ? col::dim (0.6f) : col::bright;
 
-    text (g, "swell", 0.0f, y - 7.0f, main, 11.0f);
-    text (g, "quiet", lineX, y + 15.0f, hoverZone == onQuiet && ! ed ? col::accent : col::dim (0.3f), 10.0f);
-    text (g, "wall", lineX + lineW(), y + 15.0f, hoverZone == onWall && ! ed ? col::accent : col::dim (0.3f), 10.0f, juce::Justification::centredRight, 60.0f);
+    raised (g, { 0.0f, 0.0f, cellW, h }, false, hoverZone == onQuiet && ! ed);
+    label (g, "quiet", cellW * 0.5f, h * 0.5f - 6.0f, hoverZone == onQuiet && ! ed ? col::bright : col::dim (0.55f), 7.0f, juce::Justification::centred, cellW);
+    const float wx = lineX + lineW() + 8.0f;
+    raised (g, { wx, 0.0f, cellW, h }, false, hoverZone == onWall && ! ed);
+    label (g, "wall", wx + cellW * 0.5f, h * 0.5f - 6.0f, hoverZone == onWall && ! ed ? col::bright : col::dim (0.55f), 7.0f, juce::Justification::centred, cellW);
+    const float vx = wx + cellW;
+    g.setColour (col::cell);
+    g.fillRect (vx, 0.0f, (float) getWidth() - vx, h);
+    ruleV (g, vx, 0.0f, h);
+    text (g, juce::String (juce::roundToInt (n * 100.0f)), vx + ((float) getWidth() - vx) * 0.5f, h * 0.5f - 13.0f, main, 18.0f,
+          juce::Justification::centred, (float) getWidth() - vx);
 
-    if (! ed)
-    {
-        // A light on the line where the sound is: faint when quiet, warm at the wall.
-        const float gx = lineX + lineW() * d, r = 24.0f;
-        g.setGradientFill (juce::ColourGradient (col::accent.withAlpha (0.05f + 0.2f * d), gx, y, col::accent.withAlpha (0.0f), gx + r, y, true));
-        g.fillEllipse (gx - r, y - r, r * 2.0f, r * 2.0f);
-    }
-    g.setColour (col::dim (hover || dragging ? 0.22f : 0.15f));
-    g.fillRect (lineX, y, lineW(), 1.0f);
-    g.setColour (main);
-    g.fillRect (lineX, y - 0.5f, lineW() * n, 2.0f);
+    const auto bar = juce::Rectangle<float> (lineX - 4.0f, 8.0f, lineW() + 8.0f, h - 16.0f);
+    lcd (g, bar);
+    const float by = bar.getY() + 4.0f, bh = bar.getHeight() - 8.0f;
+    const float filled = lineW() * n;
+    g.setColour (main.withAlpha (0.88f));
+    for (float x = 0.0f; x + 6.0f <= filled; x += 8.0f) g.fillRect (lineX + x, by, 6.0f, bh);
 
-    // Where Swell sits in the other scenes, so you can see where this one is.
+    // Where Swell sits in the other scenes: small grey pixels along the bottom.
     const int active = proc.getActivePart(), next = ed ? proc.getNextPart() : -1;
     for (int i = 0; i < numScenes; ++i)
     {
         const float m = marks[(size_t) i];
         if (m < 0.0f || i == (ed ? next : active)) continue;
-        const float x = lineX + lineW() * m;
-        dot (g, x, y + 0.5f, i == next ? 2.5f : 2.0f, col::accent.withAlpha (i == next ? 0.9f : 0.45f));
+        g.setColour (juce::Colour (0xff6A6A6A));
+        g.fillRect (std::round (lineX + lineW() * m) - 2.0f, bar.getBottom() - 4.0f, 4.0f, 3.0f);
     }
 
     if (! ed && proc.isSwellFading())
     {
-        // Travelling: where it's going, and how long is left.
-        const float xt = lineX + lineW() * proc.getSwellFadeTarget(), xn = lineX + lineW() * n;
-        const float dashes[] = { 2.0f, 3.0f };
-        g.setColour (col::accent.withAlpha (0.55f));
-        g.drawDashedLine ({ xn, y + 0.5f, xt, y + 0.5f }, dashes, 2, 1.0f);
-        g.drawEllipse (xt - 4.0f, y - 3.5f, 8.0f, 8.0f, 1.0f);
-        text (g, timeText (proc.getSwellFadeRemaining()), xt, y - 22.0f, col::accent, 9.0f, juce::Justification::centred, 60.0f);
+        // Travelling: a dithered stretch from here to where it's going, and how long is left.
+        const float xt = lineX + lineW() * proc.getSwellFadeTarget(), xn = lineX + filled;
+        dither (g, { juce::jmin (xt, xn), by, std::abs (xt - xn), bh }, 0.5f, 0.6f, (float) (juce::Time::getMillisecondCounter() / 120 % 4));
+        g.setColour (col::bright);
+        g.drawRect (std::round (xt) - 3.0f, by - 1.0f, 6.0f, bh + 2.0f, 1.0f);
+        label (g, timeText (proc.getSwellFadeRemaining()), lineX + lineW() * 0.5f, -7.0f, col::bright, 7.0f, juce::Justification::centred, 120.0f);
     }
     else if (! ed && std::abs (d - n) > 0.01f)   // a blend on its way
     {
         const float xd = lineX + lineW() * d;
-        g.setColour (col::accent.withAlpha (0.6f));
-        g.drawEllipse (xd - 3.0f, y - 2.5f, 6.0f, 6.0f, 1.0f);
+        dither (g, { juce::jmin (xd, lineX + filled), by, std::abs (xd - lineX - filled), bh }, 0.25f, 0.5f);
     }
 
-    const float x = lineX + lineW() * n;
-    g.setColour (juce::Colour (0xff101010));
-    g.fillEllipse (x - 6.0f, y - 5.5f, 12.0f, 12.0f);
-    g.setColour (main);
-    g.drawEllipse (x - 6.0f, y - 5.5f, 12.0f, 12.0f, 2.0f);
-
-    g.setColour (main);
-    g.setFont (mono (13.0f));
-    g.drawText (juce::String (juce::roundToInt (n * 100.0f)), juce::Rectangle<float> (lineX + lineW() + 20.0f, y - 9.0f, 40.0f, 18.0f),
-                juce::Justification::centredLeft);
+    // The handle: a bright block taller than the bar.
+    const float x = std::round (lineX + filled);
+    g.setColour (hoverZone == onLine || dragging ? col::bright : main);
+    g.fillRect (x - 4.0f, bar.getY() + 1.0f, 8.0f, bar.getHeight() - 2.0f);
 }
 
 /* ---------------- TextToggle ---------------- */
@@ -395,16 +356,12 @@ void TextToggle::tick()
 
 void TextToggle::paint (juce::Graphics& g)
 {
+    // A button cell: lit (inverse) when on.
     const bool on = param->getValue() > 0.5f, over = isMouseOver();
-    juce::Colour c = on ? (accentWhenOn ? col::accent : col::ink) : col::dim (over ? 0.75f : 0.45f);
-    float x = 0.0f;
-    if (on && accentWhenOn) { dot (g, 4.0f, (float) getHeight() * 0.5f, 3.0f, c); x = 14.0f; }
-    text (g, word, x, (float) getHeight() * 0.5f - 7.5f, c, 11.0f);
-    if (on && ! accentWhenOn)
-    {
-        g.setColour (c);
-        g.fillRect (x, (float) getHeight() * 0.5f + 8.0f, textWidth (word), 1.0f);
-    }
+    raised (g, getLocalBounds().toFloat(), on, over);
+    label (g, word, (float) getWidth() * 0.5f, (float) getHeight() * 0.5f - 6.0f, on ? col::bg : (over ? col::bright : col::dim (0.7f)), 8.0f,
+           juce::Justification::centred, (float) getWidth());
+    juce::ignoreUnused (accentWhenOn);
 }
 
 void TextToggle::mouseUp (const juce::MouseEvent& e)
@@ -431,25 +388,21 @@ void SpaceModeSwitch::tick()
 
 void SpaceModeSwitch::paint (juce::Graphics& g)
 {
+    // Two cells, the chosen one lit.
     const int m = param->getValue() > 0.5f ? 1 : 0;
-    const float w0 = textWidth ("inside", 10.0f);
-    const float xs[2] = { 0.0f, w0 + 14.0f };
+    const float half = (float) getWidth() * 0.5f, h = (float) getHeight();
     const char* words[2] = { "inside", "outside" };
     for (int i = 0; i < 2; ++i)
     {
         const bool on = i == m;
-        text (g, words[i], xs[i], 0.0f, on ? col::ink : col::dim (0.35f), 10.0f);
-        if (on)
-        {
-            g.setColour (col::ink);
-            g.fillRect (xs[i], 16.0f, textWidth (words[i], 10.0f), 1.0f);
-        }
+        raised (g, { half * (float) i, 0.0f, half, h }, on, false);
+        label (g, words[i], half * (float) i + half * 0.5f, h * 0.5f - 6.0f, on ? col::bg : col::dim (0.6f), 7.0f, juce::Justification::centred, half);
     }
 }
 
 void SpaceModeSwitch::mouseUp (const juce::MouseEvent& e)
 {
-    const int m = e.position.x < textWidth ("inside", 10.0f) + 7.0f ? 0 : 1;
+    const int m = e.position.x < (float) getWidth() * 0.5f ? 0 : 1;
     param->beginChangeGesture();
     param->setValueNotifyingHost ((float) m);
     param->endChangeGesture();
@@ -471,29 +424,22 @@ void PlayButton::tick()
 
 void PlayButton::paint (juce::Graphics& g)
 {
-    const auto b = getLocalBounds().toFloat().reduced (0.5f);
+    // Lit while playing, with pause bars; a dark cell with a pixel triangle while stopped.
+    const auto b = getLocalBounds().toFloat();
     const bool over = isMouseOver(), on = param->getValue() > 0.5f, running = proc.engine.isRunning();
-    if (over)
-    {
-        g.setColour (col::dim (0.08f));
-        g.fillEllipse (b);
-    }
-    g.setColour (over ? col::ink : col::dim (0.5f));
-    g.drawEllipse (b, 1.0f);
+    raised (g, b, on, over);
     const auto c = b.getCentre();
     if (on)
     {
-        // Pause bars; dim while waiting for your song to start.
-        g.setColour (running ? col::ink : col::dim (0.45f));
-        g.fillRect (c.x - 4.0f, c.y - 5.5f, 2.0f, 11.0f);
-        g.fillRect (c.x + 2.0f, c.y - 5.5f, 2.0f, 11.0f);
+        g.setColour (running ? col::bg : juce::Colour (0xff6A6A6A));   // waiting for your song: greyed
+        g.fillRect (std::round (c.x) - 6.0f, std::round (c.y) - 9.0f, 5.0f, 18.0f);
+        g.fillRect (std::round (c.x) + 1.0f, std::round (c.y) - 9.0f, 5.0f, 18.0f);
     }
     else
     {
-        juce::Path p;
-        p.addTriangle (c.x - 3.0f, c.y - 6.0f, c.x + 7.0f, c.y, c.x - 3.0f, c.y + 6.0f);
-        g.setColour (col::ink);
-        g.fillPath (p);
+        g.setColour (over ? col::bright : col::ink);
+        for (int k = 0; k < 8; ++k)
+            g.fillRect (std::round (c.x) - 5.0f + (float) k * 1.5f, std::round (c.y) - 9.0f + (float) k, 2.0f, 18.0f - 2.0f * (float) k);
     }
 }
 
@@ -518,26 +464,26 @@ void TakeChip::tick()
 void TakeChip::paint (juce::Graphics& g)
 {
     const bool blink = (juce::Time::getMillisecondCounter() / 400) % 2 == 0, over = isMouseOverOrDragging();
+    const float cy = (float) getHeight() * 0.5f;
     if (proc.isRecordingWaiting())
     {
-        g.setColour (col::accent.withAlpha (blink ? 1.0f : 0.35f));
-        g.drawEllipse (1.0f, 5.0f, 7.0f, 7.0f, 1.0f);
-        text (g, "waiting for your song", 15.0f, 1.0f, col::accent, 11.0f);
+        g.setColour (col::rec.withAlpha (blink ? 1.0f : 0.35f));
+        g.drawRect (2.0f, cy - 4.0f, 8.0f, 8.0f, 2.0f);
+        text (g, "waiting for your song", 18.0f, cy - 9.0f, col::rec, 12.0f);
     }
     else if (proc.isRecording())
     {
-        dot (g, 4.5f, 8.5f, 3.5f, col::accent.withAlpha (blink ? 1.0f : 0.45f));
-        text (g, "recording " + timeText (proc.getRecordedSeconds()), 15.0f, 1.0f, col::accent, 11.0f);
+        g.setColour (col::rec.withAlpha (blink ? 1.0f : 0.45f));
+        g.fillRect (2.0f, cy - 4.0f, 8.0f, 8.0f);
+        text (g, "rec " + timeText (proc.getRecordedSeconds()), 18.0f, cy - 9.0f, col::rec, 12.0f);
     }
     else if (proc.getLastTake().existsAsFile())
     {
-        // A grip, so it reads as something to pick up.
-        g.setColour (col::dim (over ? 0.9f : 0.5f));
-        for (int r = 0; r < 3; ++r)
-            for (int c = 0; c < 2; ++c) g.fillRect (1.0f + 4.0f * (float) c, 4.0f + 4.0f * (float) r, 1.5f, 1.5f);
-        const auto label = "take " + timeText (proc.getLastTakeSeconds());
-        text (g, label, 15.0f, 1.0f, over ? col::accent : col::ink, 11.0f);
-        text (g, "drag to a track", 15.0f + textWidth (label) + 12.0f, 1.5f, col::dim (0.32f), 10.0f);
+        // A grip of pixels, so it reads as something to pick up.
+        dither (g, { 2.0f, cy - 6.0f, 8.0f, 12.0f }, 0.5f, over ? 1.0f : 0.6f);
+        const auto t = "take " + timeText (proc.getLastTakeSeconds());
+        text (g, t, 18.0f, cy - 9.0f, over ? col::bright : col::ink, 12.0f);
+        text (g, "drag to a track", 18.0f + textWidth (t, 12.0f) + 12.0f, cy - 8.0f, col::dim (0.45f), 10.0f);
     }
 }
 
@@ -584,37 +530,20 @@ StageLabel::StageLabel (GrainFieldProcessor& p, int st, const juce::String& w, b
 
 void StageLabel::layout (float& xw, float& xs, float& xm) const
 {
-    const float ww = textWidth (word), sw = textWidth ("solo", 10.0f), mw = textWidth ("mute", 10.0f);
-    if (right)
-    {
-        const float r = (float) getWidth();
-        xw = r - ww;
-        xm = xw - 14.0f - mw;
-        xs = xm - 10.0f - sw;
-    }
-    else
-    {
-        xw = 0.0f;
-        xs = ww + 14.0f;
-        xm = xs + sw + 10.0f;
-    }
+    // Two cells, solo and mute, filling the component.
+    xw = 0.0f;
+    xs = 0.0f;
+    xm = (float) getWidth() * 0.5f;
 }
 
 int StageLabel::zoneAt (float x) const
 {
-    float xw, xs, xm;
-    layout (xw, xs, xm);
-    if (x >= xs - 4.0f && x < xs + textWidth ("solo", 10.0f) + 5.0f) return onSolo;
-    if (x >= xm - 4.0f && x < xm + textWidth ("mute", 10.0f) + 5.0f) return onMute;
-    if (x >= xw && x < xw + textWidth (word)) return onWord;
-    return -1;
+    return x < (float) getWidth() * 0.5f ? onSolo : onMute;
 }
 
-bool StageLabel::hitTest (int x, int)
+bool StageLabel::hitTest (int, int)
 {
-    float xw, xs, xm;
-    layout (xw, xs, xm);
-    return right ? (float) x >= xs - 4.0f : (float) x < xm + textWidth ("mute", 10.0f) + 5.0f;
+    return true;
 }
 
 void StageLabel::tick()
@@ -625,20 +554,14 @@ void StageLabel::tick()
 
 void StageLabel::paint (juce::Graphics& g)
 {
-    float xw, xs, xm;
-    layout (xw, xs, xm);
     const int solo = proc.engine.getSolo();
-    const bool muted = proc.engine.isMuted (stage), soloed = solo == stage, audible = proc.engine.isAudible (stage);
-    const float y = 4.0f;
-
-    text (g, word, xw, y, audible ? col::dim (soloed ? 0.9f : 0.4f) : col::dim (0.18f), 11.0f);
-    if (! audible)
-    {
-        g.setColour (col::dim (0.3f));
-        g.fillRect (xw, y + 8.0f, textWidth (word), 1.0f);
-    }
-    text (g, "solo", xs, y + 1.0f, soloed ? col::accent : col::dim (hover == onSolo ? 0.8f : 0.22f), 10.0f);
-    text (g, "mute", xm, y + 1.0f, muted ? col::accent : col::dim (hover == onMute ? 0.8f : 0.22f), 10.0f);
+    const bool muted = proc.engine.isMuted (stage), soloed = solo == stage;
+    const float half = (float) getWidth() * 0.5f, h = (float) getHeight();
+    raised (g, { 0.0f, 0.0f, half, h }, soloed, hover == onSolo);
+    raised (g, { half, 0.0f, half, h }, muted, hover == onMute);
+    label (g, "solo", half * 0.5f, h * 0.5f - 6.0f, soloed ? col::bg : col::dim (hover == onSolo ? 1.0f : 0.6f), 7.0f, juce::Justification::centred, half);
+    label (g, "mute", half * 1.5f, h * 0.5f - 6.0f, muted ? col::bg : col::dim (hover == onMute ? 1.0f : 0.6f), 7.0f, juce::Justification::centred, half);
+    juce::ignoreUnused (right);
 }
 
 void StageLabel::mouseMove (const juce::MouseEvent& e)

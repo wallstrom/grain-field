@@ -47,21 +47,22 @@ private:
     bool shownEditing = false;
 };
 
-// A thin ring with its name and value underneath. Controls Swell moves are drawn in the accent.
-// When the sound has been moved away from the knob, a small hollow mark shows where it really is.
+// A pixel knob in its own cell, with its name above and its value below (or beside it, when horizontal).
+// Controls Swell moves are drawn at full brightness; while the sound is elsewhere, the tip blinks.
 class Knob : public ParamControl
 {
 public:
     Knob (GrainFieldProcessor& p, int sceneParam, const juce::String& label);
     Knob (GrainFieldProcessor& p, const juce::String& paramId, const juce::String& label);   // a control outside parts
     void paint (juce::Graphics&) override;
-    static constexpr int width = 60, height = 64;
+    static constexpr int width = 60, height = 66;
+    bool horizontal = false;
 
 private:
-    juce::String label;
+    juce::String name;
 };
 
-// A hairline slider: volume and the levels.
+// A level as a row of square segments: the module levels and the bed.
 class HairSlider : public ParamControl
 {
 public:
@@ -95,8 +96,9 @@ public:
     void paint (juce::Graphics&) override;
     void tick() override;
     std::pair<juce::String, juce::String> hintAt (juce::Point<int>) override;
-    static constexpr float lineX = 100.0f, lineYpos = 25.0f;
-    float lineW() const { return (float) getWidth() - 160.0f; }   // as long as the module allows
+    // Cells: quiet, the bar, wall, then the value.
+    static constexpr float cellW = 64.0f, lineX = cellW + 12.0f, lineYpos = 21.0f;
+    float lineW() const { return (float) getWidth() - lineX - 12.0f - 8.0f - cellW - 64.0f; }
 
 private:
     enum Zone { nowhere, onLine, onQuiet, onWall };
@@ -112,7 +114,7 @@ private:
     int shownFade = -1;
 };
 
-// A word that switches an on/off parameter: sync, freeze.
+// A button cell that switches an on/off parameter: sync, freeze. Lit when on.
 class TextToggle : public juce::Component
 {
 public:
@@ -129,7 +131,7 @@ private:
     bool accentWhenOn, shown = false;
 };
 
-// inside / outside
+// inside / outside, as two cells
 class SpaceModeSwitch : public juce::Component
 {
 public:
@@ -143,7 +145,7 @@ private:
     int shown = -1;
 };
 
-// The round play button.
+// The play button: lit while playing.
 class PlayButton : public juce::Component
 {
 public:
@@ -160,7 +162,7 @@ private:
     bool shownOn = false, shownRunning = false;
 };
 
-// A stage's name with solo and mute beside it, so you can hear what each part makes.
+// Solo and mute for one stage (texture, drones, bed), as two button cells.
 class StageLabel : public juce::Component
 {
 public:
