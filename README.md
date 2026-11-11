@@ -2,7 +2,9 @@
 
 A generative ambient instrument for macOS: granular textures, evolving drones, and layered harmony, shaped into pieces over time. No MIDI keyboard required.
 
-**Version 0.7.0** · Audio Unit · VST3 · Standalone · Apple silicon + Intel
+**Version 0.7.0 — pre-release** · Audio Unit · VST3 · Standalone · Apple silicon + Intel
+
+Experimental build for evaluation: Developer ID signing/notarization and real DAW integration remain unverified. Back up projects before testing; this is not a production-ready release.
 
 ![Grain Field interface](Screenshots/ui_wall.png)
 
@@ -23,7 +25,7 @@ Requires macOS 11+, Apple's command line tools, and internet access for the firs
 3. Load the AU in Logic Pro, the VST3 in Ableton Live, or open `build/GrainField_artefacts/Release/Standalone/Grain Field.app`.
 4. Choose a preset with **‹ ›**, then press **play**. New instances start empty and stopped.
 
-Prefer a download? Use the [v0.7.0 release](https://github.com/wallstrom/grain-field/releases/tag/v0.7.0), or download **Grain Field macOS** from a successful [Actions run](https://github.com/wallstrom/grain-field/actions). Follow the [downloaded-build installation and security guidance](docs/USER_GUIDE.md#10-build-in-the-cloud-instead-optional) before opening it. Downloaded builds are not verified Developer ID-signed or notarized, so macOS may block them.
+Prefer a download? Use the [v0.7.0 pre-release](https://github.com/wallstrom/grain-field/releases/tag/v0.7.0), or download **Grain Field macOS** from a successful [Actions run](https://github.com/wallstrom/grain-field/actions). Follow the [downloaded-build installation and security guidance](docs/USER_GUIDE.md#10-build-in-the-cloud-instead-optional) before opening it. Downloaded builds are not verified Developer ID-signed or notarized, so macOS may block them.
 
 ## Status
 

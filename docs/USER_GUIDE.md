@@ -1,6 +1,8 @@
 # Grain Field User Guide
 
-Version 0.7.0. [Back to the README](../README.md).
+Version 0.7.0 — pre-release. [Back to the README](../README.md).
+
+This experimental build is for evaluation, not production use. Developer ID signing/notarization and real DAW integration remain unverified. Back up projects and existing plugin copies before testing.
 
 Paths and commands below are relative to the project root unless noted otherwise.
 
@@ -252,7 +254,7 @@ To use your own effects, switch **inside** to **outside** (in the output module)
 
 ## 10. Build in the cloud instead (optional)
 
-The included workflow (`.github/workflows/build.yml`) builds the Mac plugins on GitHub's computers each time you push. Download the ZIP from the [official release](https://github.com/wallstrom/grain-field/releases/tag/v0.7.0), or **Grain Field macOS** from a successful [Actions run](https://github.com/wallstrom/grain-field/actions). Repository access and a GitHub sign-in may be required for Actions artifacts.
+The included workflow (`.github/workflows/build.yml`) builds the Mac plugins on GitHub's computers each time you push. Download the ZIP from the [official v0.7.0 pre-release](https://github.com/wallstrom/grain-field/releases/tag/v0.7.0), or **Grain Field macOS** from a successful [Actions run](https://github.com/wallstrom/grain-field/actions). Access to source and downloads depends on repository visibility and permissions; a GitHub sign-in may be required for Actions artifacts.
 
 ### Verify and install a download
 
