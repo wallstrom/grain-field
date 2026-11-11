@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.22)
 set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "macOS architectures")
 set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "Minimum macOS version")
 
-project(GrainField VERSION 0.7.0 LANGUAGES C CXX)
+project(GrainField VERSION 0.7.1 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -101,7 +101,7 @@ if(GF_BUILD_TESTS)
     target_compile_definitions(GrainFieldSnapshot PRIVATE
         JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_USE_MP3AUDIOFORMAT=1 JUCE_MODAL_LOOPS_PERMITTED=1
         JucePlugin_Name="Grain Field" JucePlugin_IsSynth=1 JucePlugin_WantsMidiInput=1
-        JucePlugin_ProducesMidiOutput=0 JucePlugin_IsMidiEffect=0 JucePlugin_VersionString="0.7.0")
+        JucePlugin_ProducesMidiOutput=0 JucePlugin_IsMidiEffect=0 JucePlugin_VersionString="${PROJECT_VERSION}")
     target_link_libraries(GrainFieldSnapshot PRIVATE GrainFieldFonts GrainFieldSounds juce::juce_audio_utils juce::juce_dsp
         juce::juce_recommended_config_flags)
 

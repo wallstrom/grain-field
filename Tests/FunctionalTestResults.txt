@@ -1,3 +1,35 @@
+Grain Field 0.7.1 - Local release validation
+=========================================
+Test date: 2026-11-11
+Source: v0.7.1 release candidate (see the v0.7.1 tag for the published source)
+Platform: macOS, native arm64, AppleClang 21, JUCE 8.0.15
+
+RESULT: Render and snapshot targets rebuilt successfully for 0.7.1.
+Both test executables exited with code 0.
+Audio: 40 checks passed in full mode, including demo/listening-guide renders.
+UI: 6 synthetic interaction checks passed.
+Python: 9 sound-tool/packaging regression tests passed.
+
+Audio and snapshot suites ran concurrently at 48 kHz, 256-sample blocks.
+Processing-cost examples: opening 19.6%, peak scene 20.4%, worst case 21.4%.
+These are processBlock time divided by rendered duration, not whole-system
+CPU measurements or a controlled comparison with previous runs.
+Worst-case audio peak 0.790, RMS 0.3191; demo peak 0.798, RMS 0.1509.
+
+Screenshots were regenerated at 2x scale. The README's ui_wall.png was
+visually inspected and updated (2728 x 1848 pixels, arc preset, peak scene).
+Other generated images were not individually visually approved.
+Logs and renders are in build/release-v0.7.1-arfulmmo/ (ignored by Git).
+The audio resample test also creates a capture under
+~/Music/Grain Field/Captures; generated captures are not committed.
+
+This validates offline DSP and synthetic UI events, not audible speaker
+output, native window interaction, hardware routing/latency, real DAW
+integration, Developer ID signing, or notarization. Local targets were
+built only for arm64; universal package CI is separate. See the v0.7.1
+release notes for the tagged CI run and release ZIP verification.
+Existing compiler conversion/shadowing warnings remain.
+
 Build verification and historical functional test results
 ========================================================
 

@@ -1,6 +1,6 @@
 # Grain Field User Guide
 
-Version 0.7.0 — pre-release. [Back to the README](../README.md).
+Version 0.7.1. [Back to the README](../README.md).
 
 This experimental build is for evaluation, not production use. Developer ID signing/notarization and real DAW integration remain unverified. Back up projects and existing plugin copies before testing.
 
@@ -254,12 +254,12 @@ To use your own effects, switch **inside** to **outside** (in the output module)
 
 ## 10. Build in the cloud instead (optional)
 
-The included workflow (`.github/workflows/build.yml`) builds the Mac plugins on GitHub's computers each time you push. Download the ZIP from the [official v0.7.0 pre-release](https://github.com/wallstrom/grain-field/releases/tag/v0.7.0), or **Grain Field macOS** from a successful [Actions run](https://github.com/wallstrom/grain-field/actions). Access to source and downloads depends on repository visibility and permissions; a GitHub sign-in may be required for Actions artifacts.
+The included workflow (`.github/workflows/build.yml`) builds the Mac plugins on GitHub's computers each time you push. Download the ZIP from the [official v0.7.1 release](https://github.com/wallstrom/grain-field/releases/tag/v0.7.1), or **Grain Field macOS** from a successful [Actions run](https://github.com/wallstrom/grain-field/actions). Access to source and downloads depends on repository visibility and permissions; a GitHub sign-in may be required for Actions artifacts.
 
 ### Verify and install a download
 
 1. Confirm that the download came from `wallstrom/grain-field` on GitHub, not an unknown mirror.
-2. For a release ZIP, compare its SHA-256 with the value in that release's notes. Run `shasum -a 256 "Grain-Field-v0.7.0-macOS-universal.zip"` from the download directory. If it differs, do not install the ZIP. A matching checksum confirms the published file's integrity, not that the software is malware-free or signed.
+2. For a release ZIP, compare its SHA-256 with the value in that release's notes. Run `shasum -a 256 "Grain-Field-v0.7.1-macOS-universal.zip"` from the download directory. If it differs, do not install the ZIP. A matching checksum confirms the published file's integrity, not that the software is malware-free or signed.
 3. Extract the ZIP, quit your DAW, and copy `Grain Field.component` and `Grain Field.vst3` into the user Plug-Ins folders listed in section 1. Copy `Grain Field.app` to your preferred applications folder. Back up existing copies if you need to retain an older build, and keep the included license and notices with redistributed copies.
 
 ### macOS security warnings

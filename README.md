@@ -4,11 +4,11 @@
 
 A generative ambient instrument for macOS: granular textures, evolving drones, and layered harmony, shaped into pieces over time. No MIDI keyboard required.
 
-**Version 0.7.0 — pre-release** · Audio Unit · VST3 · Standalone · Apple silicon + Intel
+**Version 0.7.1** · Audio Unit · VST3 · Standalone · Apple silicon + Intel
 
 Experimental build for evaluation: Developer ID signing/notarization and real DAW integration remain unverified. Back up projects before testing; this is not a production-ready release.
 
-![Grain Field interface](Screenshots/ui_wall.png)
+![Grain Field 0.7.1 interface showing the arc preset's peak scene](Screenshots/ui_wall.png)
 
 ## What it does
 
@@ -20,28 +20,58 @@ Experimental build for evaluation: Developer ID signing/notarization and real DA
 
 ## Get started
 
-Requires macOS 11+, Apple's command line tools, and internet access for the first build.
+Requires **macOS 11 or later** on Apple silicon or Intel. Developer tools are only needed if you build from source.
 
-1. Clone this repository or download the source.
-2. From the project folder, run `bash build-mac.sh` to build and install the plugins.
-3. Load the AU in Logic Pro, the VST3 in Ableton Live, or open `build/GrainField_artefacts/Release/Standalone/Grain Field.app`.
-4. Choose a preset with **‹ ›**, then press **play**. New instances start empty and stopped.
+### Install a downloaded build
 
-Prefer a download? Use the [v0.7.0 pre-release](https://github.com/wallstrom/grain-field/releases/tag/v0.7.0), or download **Grain Field macOS** from a successful [Actions run](https://github.com/wallstrom/grain-field/actions). Follow the [downloaded-build installation and security guidance](docs/USER_GUIDE.md#10-build-in-the-cloud-instead-optional) before opening it. Downloaded builds are not verified Developer ID-signed or notarized, so macOS may block them.
+1. Download `Grain-Field-v0.7.1-macOS-universal.zip` from the [v0.7.1 release](https://github.com/wallstrom/grain-field/releases/tag/v0.7.1). Choose the plugin ZIP, not GitHub's source-code archives.
+2. Compare its SHA-256 with the release notes, then extract the ZIP. Quit your DAW and back up existing plugin copies before replacing them.
+3. In Finder, use **Go > Go to Folder** to open the destinations below; create the user folders if they do not exist. Copy each complete bundle, without renaming it:
+   - **Audio Unit:** `Grain Field.component` → `~/Library/Audio/Plug-Ins/Components/`
+   - **VST3:** `Grain Field.vst3` → `~/Library/Audio/Plug-Ins/VST3/`
+   - **Standalone:** `Grain Field.app` → your preferred Applications folder.
+4. Reopen your DAW and rescan plugins if necessary. You only need the format used by your host; the standalone app does not require a DAW.
+
+Downloaded builds are not verified Developer ID-signed or notarized, so macOS may block them. Read the [checksum and macOS security guidance](docs/USER_GUIDE.md#10-build-in-the-cloud-instead-optional) before opening a download. Do not disable Gatekeeper, lower startup security, or remove quarantine attributes as a routine installation step.
+
+### Build from source instead
+
+Clone this repository or download the source, review `build-mac.sh`, then run `bash build-mac.sh` from the project folder. Apple's command line tools and internet access are required; the script can download CMake and fetches JUCE during the first build. It builds and installs the AU/VST3 plugins, replacing existing copies. Open the standalone build at `build/GrainField_artefacts/Release/Standalone/Grain Field.app`.
+
+See the [source-build instructions](docs/USER_GUIDE.md#1-build-it-on-your-mac) for details. Alternatively, successful [Actions runs](https://github.com/wallstrom/grain-field/actions) provide a **Grain Field macOS** artifact containing a build ZIP.
+
+### Open the instrument
+
+- **Logic Pro:** create a Software Instrument track and choose **AU Instruments > Grain Field Audio > Grain Field > Stereo** in its instrument slot. If it is missing, try **Settings > Plug-in Manager > Reset & Rescan Selection**.
+- **Ableton Live:** enable **Use VST3 Plug-in System Folders** in Settings > Plug-ins, rescan, then drag **Grain Field** from Plug-ins > VST3 onto a MIDI track.
+- **Standalone:** open `Grain Field.app` from wherever you installed or built it.
+
+Host integration remains unverified for this release. If a host or macOS blocks a plugin, consult the security guidance rather than weakening system-wide protections.
+
+### Make your first sound
+
+1. Start with a low monitoring volume. New instances open **empty and stopped**; no MIDI keyboard is required.
+2. Use **‹ ›** at the top to select a factory piece such as **arc**, **haze**, **night rain**, or **wall**, then press the round **play** button.
+3. Move **Swell** from quiet toward wall to explore intensity. Change individual sounds in the **texture** and **drones** modules, and use **volume** to control the output.
+4. With **sync** enabled, start your DAW's transport too; the plugin waits while the host is stopped. With sync off, its own play button runs it independently.
+5. Click a **scene** to blend into another sound. Scenes do not advance automatically; arrange changes with the DAW's **Scene** automation parameter.
+
+Click the piece name to **save this piece**, or click **record** to capture a performance and drag the resulting take to an audio track. Your presets and recordings are stored under `~/Music/Grain Field/`. To use your own audio, choose **load a sound…** from a sound's menu; imported files are referenced by location, so keep them available.
+
+For all controls, MIDI harmony, side-chain input, recording, and multi-output routing, see the [user guide](docs/USER_GUIDE.md).
 
 ## Status
 
-Build/package verification for **v0.7.0** on **2026-11-11**:
+Local release validation for **v0.7.1** on **2026-11-11**:
 
-- [Main build](https://github.com/wallstrom/grain-field/actions/runs/43075448018) and [tagged release build](https://github.com/wallstrom/grain-field/actions/runs/43075448159) passed for cleaned initial commit `47181b6`, including packaging and artifact upload.
-- The tagged ZIP passed integrity checks; all three bundles report version 0.7.0 and contain Apple silicon and Intel executables. The project license, both font notices, and sound credits matched the source files.
-- **9 local build-tool regression tests** passed before the cleaned commit was published.
-- **Historical audio/UI testing:** 40 audio checks in full mode and 6 synthetic UI checks passed before the history cleanup, including scene persistence, DAW scene automation, and transport sync. Those suites were not rerun for the refreshed release.
+- **40 audio checks in full mode**, **6 synthetic UI checks**, and **9 Python build-tool regression tests** passed on Apple silicon.
+- The README screenshot was regenerated at 2× resolution from the current source using the snapshot target, then visually inspected.
+- Universal AU, VST3, and standalone packages are produced by the [Build workflow](https://github.com/wallstrom/grain-field/actions/workflows/build.yml). See the release notes for the tagged CI result, archive verification, and checksum.
 - Manual listening, native window interaction, and real DAW integration remain unverified, as do distribution signing and notarization.
 
 Scenes replace timed parts: there is no internal timeline or automatic play-through. Existing v0.6 parts load as scenes; automate the **Scene** parameter in your DAW to arrange transitions.
 
-CI currently builds and packages; neither the audio/UI suites nor the Python build-tool tests run in CI. See the [recorded test results](Tests/FunctionalTestResults.txt) for historical metrics, coverage, limitations, and reproduction instructions.
+CI currently builds and packages; neither the audio/UI suites nor the Python build-tool tests run in CI. See the [recorded test results](Tests/FunctionalTestResults.txt) for current validation, historical metrics, limitations, and reproduction instructions.
 
 ## Documentation
 
@@ -57,18 +87,18 @@ Built with **C++17, JUCE 8.0.15, and CMake**. Build outputs and downloaded tools
 
 Grain Field's original code is licensed under the GNU Affero General Public License, version 3 only ([LICENSE](LICENSE)). JUCE is separately dual-licensed under AGPLv3 or its [commercial licence](https://juce.com/get-juce/); a commercial JUCE licence does not override Grain Field's own AGPL terms. Fonts remain under the SIL Open Font License, and bundled sounds retain their separate terms in [Resources/Sounds/CREDITS.txt](Resources/Sounds/CREDITS.txt). Release archives include the project license, font notices, and sound credits. See the [licensing notes](docs/USER_GUIDE.md#11-licence).
 
-## Pre-release status and known limitations
+## Release status and known limitations
 
-Grain Field **v0.7.0 is an experimental pre-release** intended for evaluation and feedback, not production use. Back up your projects and existing plugin installations before testing.
+Grain Field **v0.7.1 is a final version tag, but remains experimental software** intended for evaluation and feedback, not production use. Final release status does not imply Apple signing/notarization or verified DAW compatibility. Back up your projects and existing plugin installations before testing.
 
 ### What has been verified
 
-- GitHub Actions successfully built and packaged the Audio Unit, VST3, and standalone app.
-- All three bundles report version 0.7.0 and include Apple silicon and Intel executables.
-- The release ZIP passed integrity checks and includes the project license, font notices, and sound credits.
-- Nine local build-tool regression tests passed.
+- Native Apple silicon render and snapshot targets compiled for version 0.7.1 with JUCE 8.0.15.
+- The full audio suite passed 40 checks, including scene persistence, DAW scene automation, and transport sync in the offline harness.
+- Six synthetic UI checks and nine Python build-tool regression tests passed.
+- The refreshed README screenshot was generated from this source and visually inspected.
 
-Earlier audio/UI testing recorded **40 audio checks and six synthetic UI checks passing**. These results predate the repository cleanup; those suites were not rerun for the refreshed release.
+These local checks do not exercise Intel binaries or a real DAW. The release notes record the separate tagged universal-build and download verification results.
 
 ### Known limitations
 
@@ -79,7 +109,7 @@ Earlier audio/UI testing recorded **40 audio checks and six synthetic UI checks 
 
 ### Before installing
 
-Download from the [official release](https://github.com/wallstrom/grain-field/releases/tag/v0.7.0), compare the ZIP's SHA-256 with the release notes, and read the [installation and security guidance](docs/USER_GUIDE.md#10-build-in-the-cloud-instead-optional). A matching checksum confirms file integrity, not software safety.
+Download from the [official release](https://github.com/wallstrom/grain-field/releases/tag/v0.7.1), compare the ZIP's SHA-256 with the release notes, and read the [installation and security guidance](docs/USER_GUIDE.md#10-build-in-the-cloud-instead-optional). A matching checksum confirms file integrity, not software safety.
 
 Do not disable Gatekeeper or lower your Mac's startup security to load the plugin.
 
