@@ -47,6 +47,7 @@ CI currently builds and packages; neither the audio/UI suites nor the Python bui
 - [Developer reference](docs/USER_GUIDE.md#for-developers): source layout and architecture.
 - [Running tests](docs/USER_GUIDE.md#running-the-functional-tests) and [recorded results](Tests/FunctionalTestResults.txt).
 - [Security policy](SECURITY.md): private vulnerability reporting, version scope, and distribution limitations.
+- [Contributing](CONTRIBUTING.md): development setup, validation, and pull request guidelines.
 
 Built with **C++17, JUCE 8.0.15, and CMake**. Build outputs and downloaded tools are ignored by Git.
 
