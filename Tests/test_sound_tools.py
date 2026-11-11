@@ -128,8 +128,8 @@ class PackagingTests(unittest.TestCase):
         workflow = (ROOT / '.github' / 'workflows' / 'build.yml').read_text()
         package = workflow.split('      - name: Package\n        run: |\n', 1)[1]
         script = textwrap.dedent(package.split('\n      - uses:', 1)[0])
-        notices = ['LICENSE', 'Resources/Fonts/DMMono-OFL.txt',
-                   'Resources/Fonts/InstrumentSerif-OFL.txt', 'Resources/Sounds/CREDITS.txt']
+        notices = ['LICENSE', 'Resources/Fonts/Silkscreen-OFL.txt',
+                   'Resources/Fonts/VT323-OFL.txt', 'Resources/Sounds/CREDITS.txt']
         with tempfile.TemporaryDirectory(prefix='grain field package ') as directory:
             work = Path(directory)
             for relative in notices:
@@ -145,11 +145,22 @@ class PackagingTests(unittest.TestCase):
             with zipfile.ZipFile(work / 'Grain Field macOS.zip') as archive:
                 for source, packaged in [
                     ('LICENSE', 'LICENSE'),
-                    ('Resources/Fonts/DMMono-OFL.txt', 'Notices/Fonts/DMMono-OFL.txt'),
-                    ('Resources/Fonts/InstrumentSerif-OFL.txt', 'Notices/Fonts/InstrumentSerif-OFL.txt'),
+                    ('Resources/Fonts/Silkscreen-OFL.txt', 'Notices/Fonts/Silkscreen-OFL.txt'),
+                    ('Resources/Fonts/VT323-OFL.txt', 'Notices/Fonts/VT323-OFL.txt'),
                     ('Resources/Sounds/CREDITS.txt', 'Notices/Sound-Credits.txt'),
                 ]:
                     self.assertEqual(archive.read(packaged), (ROOT / source).read_bytes())
+                self.assertNotIn('Notices/Fonts/DMMono-OFL.txt', archive.namelist())
+                self.assertNotIn('Notices/Fonts/InstrumentSerif-OFL.txt', archive.namelist())
+
+    def test_embedded_fonts_have_matching_oled_notices(self):
+        cmake = (ROOT / 'CMakeLists.txt').read_text()
+        fonts = cmake.split('juce_add_binary_data(GrainFieldFonts SOURCES', 1)[1].split(')', 1)[0]
+        for name in ('VT323-Regular.ttf', 'Silkscreen-Regular.ttf', 'Silkscreen-Bold.ttf'):
+            self.assertIn('Resources/Fonts/' + name, fonts)
+            self.assertTrue((ROOT / 'Resources' / 'Fonts' / name).is_file())
+        for name in ('VT323-OFL.txt', 'Silkscreen-OFL.txt'):
+            self.assertIn('SIL OPEN FONT LICENSE', (ROOT / 'Resources' / 'Fonts' / name).read_text())
 
 
 if __name__ == '__main__':

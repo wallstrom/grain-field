@@ -2,7 +2,7 @@
 
 ## Version scope
 
-Grain Field is experimental software. Security reports are accepted for the latest published pre-release (currently v0.7.0) and the current `main` branch. Older releases have no promised security backports; fixes may require upgrading to a newer build.
+Grain Field is experimental software. Security reports are accepted for the latest published release (v0.7.1), the previous v0.7.0 pre-release, and the current `main` branch. Older releases have no promised security backports; fixes may require upgrading to a newer build.
 
 Reports and fixes are handled on a best-effort basis. There is no guaranteed response time, remediation deadline, or long-term support commitment.
 

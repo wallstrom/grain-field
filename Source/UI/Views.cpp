@@ -102,17 +102,26 @@ void ScenesView::paint (juce::Graphics& g)
     {
         const bool on = c.part == active, over = hover == c.part;
         const auto r = c.r.withTrimmedRight (1.0f);
-        if (on && pr >= 0.0f && pr < 1.0f)
+        const bool blending = on && pr >= 0.0f && pr < 1.0f;
+        const auto lit = r.withWidth (std::round (r.getWidth() * juce::jlimit (0.0f, 1.0f, pr)));
+        if (blending)
         {
             // Blending in: the cell lights up from the left.
             raised (g, r, false, false);
             g.setColour (col::ink);
-            g.fillRect (r.withWidth (std::round (r.getWidth() * pr)));
+            g.fillRect (lit);
         }
         else raised (g, r, on, over);
         ruleV (g, c.r.getRight() - 1.0f, 0.0f, c.r.getBottom());
-        label (g, sceneName (c.part), r.getCentreX(), r.getCentreY() - 6.0f, on ? col::bg : (over ? col::bright : col::dim (0.7f)), 8.0f,
+        label (g, sceneName (c.part), r.getCentreX(), r.getCentreY() - 6.0f, on && ! blending ? col::bg : (on || over ? col::bright : col::dim (0.7f)), 8.0f,
                juce::Justification::centred, r.getWidth() - 8.0f);
+        if (blending && ! lit.isEmpty())
+        {
+            juce::Graphics::ScopedSaveState save (g);
+            g.reduceClipRegion (lit.toNearestInt());
+            label (g, sceneName (c.part), r.getCentreX(), r.getCentreY() - 6.0f, col::bg, 8.0f,
+                   juce::Justification::centred, r.getWidth() - 8.0f);
+        }
     }
     if (! addRect.isEmpty())
     {
@@ -425,9 +434,10 @@ void HarmonyView::paint (juce::Graphics& g)
         text (g, chordNotesFromBass (key, st), r.getX() + 7.0f, r.getY() + 20.0f, col::dim (out ? 0.3f : 0.5f), 10.0f, juce::Justification::centredLeft, r.getWidth() - 10.0f);
 
         // The bars as pixels: lit as they pass. Queued chords say when they come in instead.
-        const float by = r.getBottom() - 9.0f;
+        const auto durations = durationCellsRect (i), actions = actionRowRect (i);
+        const float by = durations.getY();
         if (queued)
-            label (g, when == 0 ? "next" : (when == 1 ? "at bar" : "now"), r.getX() + 7.0f, by - 5.0f, blink ? col::bright : col::dim (0.5f), 7.0f);
+            label (g, when == 0 ? "next" : (when == 1 ? "at bar" : "now"), r.getX() + 7.0f, actions.getY(), blink ? col::bright : col::dim (0.5f), 7.0f);
         else
         {
             const int nb = juce::jlimit (1, 16, st.bars);
@@ -436,14 +446,14 @@ void HarmonyView::paint (juce::Graphics& g)
             for (int k = 0; k < nb; ++k)
             {
                 g.setColour (k < done ? col::bright : (k == done && on && blink ? juce::Colour (0xff8A8A8A) : juce::Colour (0xff2E2E2E)));
-                g.fillRect (r.getX() + 7.0f + (float) k * 7.0f, by, 5.0f, 4.0f);
+                g.fillRect (durations.getX() + (float) k * 7.0f, by, 5.0f, durations.getHeight());
             }
         }
         if (over && ! dragging)
         {
-            label (g, "edit", r.getRight() - 6.0f, by - 5.0f, hover == onEditBase + i ? col::bright : col::dim (0.55f), 7.0f, juce::Justification::centredRight, 40.0f);
+            label (g, "edit", r.getRight() - 6.0f, actions.getY(), hover == onEditBase + i ? col::bright : col::dim (0.55f), 7.0f, juce::Justification::centredRight, 40.0f);
             if (! ed && ! on)
-                label (g, "now", r.getRight() - 38.0f, by - 5.0f, hover == onNowBase + i ? col::bright : col::dim (0.55f), 7.0f, juce::Justification::centredRight, 40.0f);
+                label (g, "now", r.getRight() - 38.0f, actions.getY(), hover == onNowBase + i ? col::bright : col::dim (0.55f), 7.0f, juce::Justification::centredRight, 40.0f);
         }
         if (queued)
         {
@@ -1504,13 +1514,13 @@ void DronesPicture::paint (juce::Graphics& g)
 
 OutputPicture::OutputPicture (GrainFieldProcessor& p) : Picture (p)
 {
-    setHint (*this, "output", "The hand-over: grains cross from the texture into the drones as far as merge lets them. The square rings are the room, the core is how loud it is with the echo rising off it, and the meter on the right is the level going out");
+    setHint (*this, "output", "Grains cross from texture into drones as far as merge lets them. The rings are the room and the core follows loudness. The RMS meter spans -60 to 0 dBFS; red starts at -1 dBFS RMS. Its hold is the highest RMS, not a sample-peak or clipping detector");
 }
 
 void OutputPicture::advance (float dt)
 {
-    // The meter follows the level, and its peak holds for a moment before it falls back.
-    const float lv = juce::jlimit (0.0f, 1.0f, proc.engine.getLevel() * 4.0f) * (proc.engine.isRunning() ? 1.0f : 0.0f);
+    // Calibrated RMS in dBFS, independent of the exaggerated core animation below.
+    const float lv = proc.engine.isRunning() ? rmsToMeter (proc.engine.getLevel()) : 0.0f;
     meter = lv > meter ? lv : meter + (lv - meter) * juce::jmin (1.0f, dt * 6.0f);
     if (meter >= peak) { peak = meter; peakAge = 0.0f; }
     else if ((peakAge += dt) > 1.2f) peak = juce::jmax (meter, peak - dt * 0.5f);
@@ -1583,17 +1593,18 @@ void OutputPicture::paint (juce::Graphics& g)
     if (! running) g.endTransparencyLayer();
     g.restoreState();
 
-    // The meter: stacked cells; the top few turn red near clipping, and the peak holds.
+    // Stacked RMS cells over -60..0 dBFS; red is high RMS, not sample clipping.
     const int cells = juce::jmax (8, (int) ((H - 40.0f) / 5.0f));
     const int on = juce::roundToInt (meter * (float) cells), pk = juce::roundToInt (peak * (float) cells);
     for (int c = 0; c < cells; ++c)
     {
         const bool lit = c < on, isPeak = c == juce::jmin (cells - 1, pk) && peak > 0.02f;
-        const bool hot = c >= cells - 3;
+        const float upperDb = meterFloorDb + ((float) (c + 1) / (float) cells) * -meterFloorDb;
+        const bool hot = upperDb >= meterHotDb;
         g.setColour (lit ? (hot ? col::rec : col::ink) : (isPeak ? juce::Colour (0xff8A8A8A) : col::faint));
         g.fillRect (mx, H - 22.0f - (float) c * 5.0f, meterW, 3.0f);
     }
-    label (g, "out", mx + meterW * 0.5f, H - 17.0f, col::dim (0.5f), 7.0f, juce::Justification::centred, 30.0f);
+    label (g, "rms", mx + meterW * 0.5f, H - 17.0f, col::dim (0.5f), 7.0f, juce::Justification::centred, 30.0f);
     label (g, outside ? "room to send" : "texture > drones", (W - meterW) * 0.5f, H - 17.0f, col::dim (0.45f), 7.0f, juce::Justification::centred, W - meterW - 16.0f);
     scanlines (g, getLocalBounds().toFloat().reduced (1.0f));
 }

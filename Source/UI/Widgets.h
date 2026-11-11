@@ -99,6 +99,12 @@ public:
     // Cells: quiet, the bar, wall, then the value.
     static constexpr float cellW = 64.0f, lineX = cellW + 12.0f, lineYpos = 21.0f;
     float lineW() const { return (float) getWidth() - lineX - 12.0f - 8.0f - cellW - 64.0f; }
+    juce::Rectangle<float> wallRect() const { return { lineX + lineW() + 8.0f, 0.0f, cellW, (float) getHeight() }; }
+    juce::Rectangle<float> countdownRect() const
+    {
+        const float x = wallRect().getRight();
+        return { x, (float) getHeight() - 12.0f, (float) getWidth() - x, 10.0f };
+    }
 
 private:
     enum Zone { nowhere, onLine, onQuiet, onWall };

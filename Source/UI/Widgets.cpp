@@ -207,8 +207,9 @@ float SwellLine::dragToNorm (const juce::MouseEvent& e, float)
 
 SwellLine::Zone SwellLine::zoneAt (juce::Point<float> pt) const
 {
-    if (pt.x < lineX - 2.0f) return onQuiet;
-    if (pt.x >= lineX + lineW() + 2.0f && pt.x < lineX + lineW() + cellW) return onWall;
+    if (! getLocalBounds().toFloat().contains (pt)) return nowhere;
+    if (pt.x < cellW) return onQuiet;
+    if (wallRect().contains (pt)) return onWall;
     if (pt.x >= lineX - 2.0f && pt.x < lineX + lineW() + 2.0f) return onLine;
     return nowhere;
 }
@@ -291,19 +292,25 @@ void SwellLine::paint (juce::Graphics& g)
     // travels, a dithered stretch shows where it's heading.
     const float h = (float) getHeight(), n = getNorm(), d = getDisplayNorm();
     const bool ed = editingNext();
+    const bool fading = ! ed && proc.isSwellFading();
     const juce::Colour main = ed ? col::dim (0.6f) : col::bright;
 
     raised (g, { 0.0f, 0.0f, cellW, h }, false, hoverZone == onQuiet && ! ed);
     label (g, "quiet", cellW * 0.5f, h * 0.5f - 6.0f, hoverZone == onQuiet && ! ed ? col::bright : col::dim (0.55f), 7.0f, juce::Justification::centred, cellW);
-    const float wx = lineX + lineW() + 8.0f;
-    raised (g, { wx, 0.0f, cellW, h }, false, hoverZone == onWall && ! ed);
+    const float wx = wallRect().getX();
+    raised (g, wallRect(), false, hoverZone == onWall && ! ed);
     label (g, "wall", wx + cellW * 0.5f, h * 0.5f - 6.0f, hoverZone == onWall && ! ed ? col::bright : col::dim (0.55f), 7.0f, juce::Justification::centred, cellW);
     const float vx = wx + cellW;
     g.setColour (col::cell);
     g.fillRect (vx, 0.0f, (float) getWidth() - vx, h);
     ruleV (g, vx, 0.0f, h);
-    text (g, juce::String (juce::roundToInt (n * 100.0f)), vx + ((float) getWidth() - vx) * 0.5f, h * 0.5f - 13.0f, main, 18.0f,
+    text (g, juce::String (juce::roundToInt (n * 100.0f)), vx + ((float) getWidth() - vx) * 0.5f, fading ? 2.0f : h * 0.5f - 13.0f, main, fading ? 16.0f : 18.0f,
           juce::Justification::centred, (float) getWidth() - vx);
+    if (fading)
+    {
+        const auto r = countdownRect();
+        label (g, timeText (proc.getSwellFadeRemaining()), r.getCentreX(), r.getY(), col::bright, 7.0f, juce::Justification::centred, r.getWidth());
+    }
 
     const auto bar = juce::Rectangle<float> (lineX - 4.0f, 8.0f, lineW() + 8.0f, h - 16.0f);
     lcd (g, bar);
@@ -322,14 +329,13 @@ void SwellLine::paint (juce::Graphics& g)
         g.fillRect (std::round (lineX + lineW() * m) - 2.0f, bar.getBottom() - 4.0f, 4.0f, 3.0f);
     }
 
-    if (! ed && proc.isSwellFading())
+    if (fading)
     {
         // Travelling: a dithered stretch from here to where it's going, and how long is left.
         const float xt = lineX + lineW() * proc.getSwellFadeTarget(), xn = lineX + filled;
         dither (g, { juce::jmin (xt, xn), by, std::abs (xt - xn), bh }, 0.5f, 0.6f, (float) (juce::Time::getMillisecondCounter() / 120 % 4));
         g.setColour (col::bright);
         g.drawRect (std::round (xt) - 3.0f, by - 1.0f, 6.0f, bh + 2.0f, 1.0f);
-        label (g, timeText (proc.getSwellFadeRemaining()), lineX + lineW() * 0.5f, -7.0f, col::bright, 7.0f, juce::Justification::centred, 120.0f);
     }
     else if (! ed && std::abs (d - n) > 0.01f)   // a blend on its way
     {

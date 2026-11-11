@@ -83,6 +83,16 @@ public:
     // which holds the chord played on a MIDI keyboard (and keep / let go) when there is one.
     static constexpr float topPad = 8.0f, gap = 0.0f;
     float slotW() const { return (float) getWidth() / 8.0f; }
+    juce::Rectangle<float> durationCellsRect (int index) const
+    {
+        const auto r = slotRect (index);
+        return { r.getX() + 7.0f, r.getBottom() - 24.0f, 110.0f, 4.0f };
+    }
+    juce::Rectangle<float> actionRowRect (int index) const
+    {
+        const auto r = slotRect (index);
+        return { r.getX(), r.getBottom() - 14.0f, r.getWidth(), 10.0f };
+    }
 
 private:
     enum { onKey = -2, onStay = -3, onPlayOn = -4, onKeyDown = -5, onKeyUp = -6, onKeep = -7, onLetGo = -8, onNothing = -9, onEditBase = 100, onNowBase = 200, onLoopBase = 300 };
@@ -227,6 +237,13 @@ class OutputPicture : public Picture
 public:
     explicit OutputPicture (GrainFieldProcessor& p);
     void paint (juce::Graphics&) override;
+    // The input is smoothed linear RMS, not a sample peak. Animation uses its own scaling.
+    static constexpr float meterFloorDb = -60.0f, meterHotDb = -1.0f;
+    static float rmsToMeter (float rms)
+    {
+        const float db = juce::Decibels::gainToDecibels (rms, meterFloorDb);
+        return juce::jlimit (0.0f, 1.0f, (db - meterFloorDb) / -meterFloorDb);
+    }
 
 private:
     void advance (float dt) override;

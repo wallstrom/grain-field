@@ -65,6 +65,16 @@ void setP (GrainFieldProcessor& p, const juce::String& id, float value)
     auto* param = p.apvts.getParameter (id);
     param->setValueNotifyingHost (param->convertTo0to1 (value));
 }
+
+int brightPixels (const juce::Image& image, juce::Rectangle<int> area)
+{
+    area = area.getIntersection (image.getBounds());
+    int count = 0;
+    for (int y = area.getY(); y < area.getBottom(); ++y)
+        for (int x = area.getX(); x < area.getRight(); ++x)
+            if (image.getPixelAt (x, y).getBrightness() > 0.65f) ++count;
+    return count;
+}
 } // namespace
 
 int main (int argc, char** argv)
@@ -284,6 +294,114 @@ int main (int argc, char** argv)
         check ("Your own sound shows its note", found == 6 && proc.getSlotRootChoice (gf::slotBed) == 9 && proc.getSlotRootChoice (0) == 9, "found f#, then called a");
         shoot (*editor, outDir.getChildFile ("ui_note.png"), scale);
         f.deleteFile();
+    }
+
+    // OLED regressions: exercise edge hit areas and render the countdown at each supported size.
+    {
+        auto* sw = findChild<gf::ui::SwellLine> (*editor);
+        proc.setSwellFadeSeconds (30.0);
+        for (const auto size : { juce::Point<int> (1240, 840), juce::Point<int> (1860, 1260),
+                                juce::Point<int> (2480, 1680), juce::Point<int> (868, 588),
+                                juce::Point<int> (1760, 840), juce::Point<int> (1240, 1180) })
+        {
+            editor->setSize (size.x, size.y);
+            run (80);
+            const auto wall = sw->wallRect();
+            bool edgesWork = true;
+            for (float x : { wall.getX() + 1.0f, wall.getCentreX(), wall.getRight() - 1.0f })
+            {
+                proc.cancelSwellFade();
+                click (*sw, { x, wall.getCentreY() });
+                edgesWork = edgesWork && proc.isSwellFading() && proc.getSwellFadeTarget() == 1.0f;
+            }
+            proc.cancelSwellFade();
+            click (*sw, { wall.getX() - 3.0f, wall.getCentreY() });
+            const bool gapIsInert = ! proc.isSwellFading();
+            click (*sw, { wall.getRight() + 1.0f, wall.getCentreY() });
+            const auto tag = juce::String (size.x) + "x" + juce::String (size.y);
+            check (("WALL hit area " + tag).toRawUTF8(), edgesWork && gapIsInert && ! proc.isSwellFading(),
+                   "both edges and center work; neighboring gap/value stay inert");
+
+            proc.swellFadeTo (1.0f);
+            const auto image = sw->createComponentSnapshot (sw->getLocalBounds(), true, 1.0f);
+            const auto countdown = sw->countdownRect().toNearestInt();
+            check (("Swell countdown " + tag).toRawUTF8(),
+                   sw->getLocalBounds().contains (countdown) && brightPixels (image, countdown) > 2,
+                   "remaining-time glyphs are rendered wholly inside the value cell");
+            shoot (*editor, outDir.getChildFile ("ui_regression_" + tag + ".png"), scale);
+        }
+        proc.cancelSwellFade();
+        editor->setSize (w0, h0);
+        run (100);
+    }
+
+    // A new scene's name must stay bright on the unfilled background early in a long blend.
+    {
+        proc.loadPreset (0);
+        setP (proc, gf::ids::play, 1.0f);
+        run (250);   // let the audio thread adopt the preset before issuing another scene command
+        setP (proc, gf::ids::blend, 30.0f);
+        proc.goToPart (1);
+        int waited = 0;
+        while (proc.engine.getBlendProgress() < 0.0f && waited < 2000)
+        {
+            run (20);
+            waited += 20;
+        }
+        run (80);
+        auto* sv = findChild<gf::ui::ScenesView> (*editor);
+        sv->tick();
+        const auto chip = sv->chipRect (1);
+        const auto nameArea = chip.withSizeKeepingCentre (juce::jmin (50.0f, chip.getWidth() - 10.0f), 14.0f).toNearestInt();
+        const auto image = sv->createComponentSnapshot (sv->getLocalBounds(), true, 1.0f);
+        const float progress = proc.engine.getBlendProgress();
+        check ("Scene label visible during early blend",
+               progress >= 0.0f && progress < 0.2f && brightPixels (image, nameArea) > 4,
+               juce::String::formatted ("blend %.3f; visible name pixels %d", progress, brightPixels (image, nameArea)));
+        shoot (*editor, outDir.getChildFile ("ui_scene_blend_early.png"), scale);
+    }
+
+    // A long chord's duration cells and its hovered NOW/EDIT actions occupy different rows.
+    {
+        setP (proc, gf::ids::blend, 0.0f);
+        proc.goToPart (0);
+        run (100);
+        auto pr = proc.getProgression();
+        pr.count = 2;
+        pr.steps[1] = pr.steps[0];
+        pr.steps[1].root = 7;
+        pr.steps[1].bars = 16;
+        proc.setProgression (pr, 0);
+        setP (proc, gf::ids::hold, 1.0f);
+        run (100);
+        auto* harmony = findChild<gf::ui::HarmonyView> (*editor);
+        const auto cells = harmony->durationCellsRect (1), actions = harmony->actionRowRect (1);
+        const juce::Point<float> nowAt (actions.getRight() - 50.0f, actions.getCentreY());
+        harmony->mouseMove (mouse (*harmony, nowAt, nowAt, 1, false));
+        const auto image = harmony->createComponentSnapshot (harmony->getLocalBounds(), true, 1.0f);
+        int visible = 0;
+        for (int i = 0; i < 16; ++i)
+            if (image.getPixelAt (juce::roundToInt (cells.getX() + 2.0f + (float) i * 7.0f),
+                                 juce::roundToInt (cells.getY() + 1.0f)).getARGB() == 0xff2E2E2E) ++visible;
+        check ("16-bar cells clear of hover actions", ! cells.intersects (actions) && visible == 16,
+               juce::String::formatted ("%d of 16 duration cells visible", visible));
+        shoot (*editor, outDir.getChildFile ("ui_16bar_hover.png"), scale);
+        click (*harmony, nowAt);
+        run (150);
+        check ("NOW still selects hovered chord", proc.engine.getStepIndex() == 1, "selected chord 2 immediately");
+    }
+
+    {
+        const float quarter = gf::ui::OutputPicture::rmsToMeter (0.25f);
+        const float half = gf::ui::OutputPicture::rmsToMeter (0.5f);
+        const float hot = (gf::ui::OutputPicture::meterHotDb - gf::ui::OutputPicture::meterFloorDb)
+                          / -gf::ui::OutputPicture::meterFloorDb;
+        check ("RMS meter calibrated in dBFS",
+               gf::ui::OutputPicture::rmsToMeter (0.0f) == 0.0f
+                   && gf::ui::OutputPicture::rmsToMeter (0.001f) < 0.001f
+                   && std::abs (quarter - 0.7993f) < 0.001f && quarter < half && half < hot
+                   && gf::ui::OutputPicture::rmsToMeter (1.0f) == 1.0f,
+               juce::String::formatted ("RMS 0.25 -> %.3f, RMS 0.5 -> %.3f; red threshold %.3f", quarter, half, hot));
     }
 
     audio.stopThread (1000);
