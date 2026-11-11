@@ -1,5 +1,7 @@
 # Grain Field
 
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
+
 A generative ambient instrument for macOS: granular textures, evolving drones, and layered harmony, shaped into pieces over time. No MIDI keyboard required.
 
 **Version 0.7.0 — pre-release** · Audio Unit · VST3 · Standalone · Apple silicon + Intel
