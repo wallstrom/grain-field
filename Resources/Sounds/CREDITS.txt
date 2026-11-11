@@ -1,0 +1,21 @@
+Grain Field built-in sounds (0.4)
+
+Most sounds start from instruments recorded by the Versilian Community Sample Library (VCSL),
+https://github.com/sgossner/VCSL, released under CC0 1.0 (public domain). Each was then slowed
+and smeared (Paulstretch-style), filtered and worn, so it no longer sounds like the instrument.
+
+  glass haze    rubbed wine glasses, stretched 4x, with a faint octave shimmer
+  tape choir    Renaissance organ through vowel-like resonances, stretched, with tape wow
+  dust halo     vibraphone played backwards and stretched, with record dust
+  bowed air     bowed psaltery, stretched, with breath around it
+  low hum       bowed vibraphone, stretched long and kept dark
+  glass drone   the wine glasses again, stretched much further
+  ocean drum    VCSL ocean drum, filtered and looped
+
+Synthesised (no recordings): low room, rain, wind.
+
+Every pitched sound keeps a note map (Source/BuiltinSounds.inc), so grains can be tuned to the chord.
+
+To rebuild: Tools/select_samples.py picks the files from a VCSL checkout, Tools/build_textures.py makes
+the Ogg files here and Source/BuiltinSounds.inc. Defaults are relative to the repository; use --vcsl
+to select a different VCSL checkout. Scratch files are written to build/soundbuild.

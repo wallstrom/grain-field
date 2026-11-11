@@ -1,0 +1,136 @@
+Grain Field 0.7.0 - Functional Test Results
+Test date: 2026-11-11
+Source commit: d5066462e9cd2335eb56b80156f4bad2fb68264f
+Platform: macOS
+
+RESULT: Both rebuilt v0.7 test binaries exited with code 0.
+Audio: 40 assertions passed in full mode (including demo/listening guide).
+UI: 6 synthetic interaction assertions passed while the audio engine ran.
+Both suites ran concurrently. Render format: 48 kHz, 256-sample blocks.
+Audio suite duration: 247.6 seconds. UI suite duration: 63.5 seconds.
+
+Audio measurements
+------------------
+Scenario                  Peak     RMS      Level (dBFS)   Processing cost
+Opening                   0.237    0.0425   -27.4          19.5%
+Scene 2: root             0.294    0.0603   -24.4          19.7%
+Scene 3: build            0.466    0.1046   -19.6          20.8%
+Scene 4: peak             0.769    0.2215   -13.1          21.8%
+Scene 5: wind down        0.339    0.0653   -23.7          20.7%
+Worst case: all up        0.790    0.3191    -9.9          22.8%
+Demo piece                0.798    0.1509
+
+Processing cost is processBlock execution time divided by rendered duration,
+not whole-system CPU usage. Do not treat this as a controlled benchmark
+against v0.6: the previous run used quick mode and different render durations.
+
+New scene behavior passed: the scene stayed unchanged after 30 seconds;
+DAW automation selected another scene; sync waited for host playback and a
+host timeline jump did not change the selected scene.
+Stop reached RMS 0.0000000 after two seconds.
+Recording: 3.00 seconds, 24 bit, RMS 0.0284; maximum sample difference
+from the rendered signal was 0.00000012.
+MIDI, tuning, crossfades, routing, side-chain input, resampling, state restore,
+scene recall/removal, Swell, full demo, and listening-guide checks passed.
+
+UI checks passed: knob double-click reset, knob drag, scene selection,
+Swell fade/manual takeover, waveform-window drag/Shift-drag, imported note.
+Generated 18 WAV files and 15 UI snapshots; images were not visually reviewed.
+
+Artifacts retained locally (relative to project root):
+build/functional-test-v0.7.0-kwd_l8vw/
+Includes audio/test.log, ui/test.log, summary.json, renders, and snapshots.
+The resample test also created:
+~/Music/Grain Field/Captures/Capture 2026-11-11 18.30.26.wav
+
+CI build/package/upload also passed:
+https://github.com/wallstrom/grain-field/actions/runs/43067279398
+CI does not run the functional test targets.
+
+Scope: offline audio processing and in-process synthetic UI events only.
+Audible speaker output, hardware routing/latency, native standalone window
+interaction, real DAW integration, distribution signing and notarization
+remain unverified. Rebuilding tests did not reinstall AU/VST3 plugins.
+Compiler warnings remain for int-to-float conversions and shadowed variables.
+To reproduce the full audio suite, use the commands below without "quick".
+
+Historical v0.6 results
+======================
+Grain Field 0.6.0 - Functional Test Results
+Test date: 2026-11-11
+Platform: macOS
+
+RESULT: Both test binaries exited with code 0.
+Audio: 39 assertions passed. UI: 6 assertions passed.
+
+Audio test
+----------
+Binary: build/GrainFieldRenderTest_artefacts/Release/GrainFieldRenderTest
+Mode: quick
+Render format: 48 kHz, 256-sample blocks
+
+Scenario                  Peak     RMS      Level (dBFS)   Processing cost
+Opening                   0.208    0.0407   -27.8          22.5%
+Part 2: root              0.244    0.0583   -24.7          23.1%
+Part 3: build             0.435    0.0965   -20.3          23.0%
+Part 4: peak              0.681    0.1923   -14.3          24.6%
+Part 5: wind down         0.404    0.0825   -21.7          23.3%
+Worst case: all up        0.772    0.3020   -10.4          24.9%
+
+Processing cost is processBlock execution time divided by rendered audio
+duration, not whole-system CPU usage. Both suites ran concurrently.
+
+All checked audio levels were finite and within the test's clipping limits.
+Verified: drone growth, part progression and parameter propagation, resampling,
+state restoration, four output buses, external-effects routing, texture output,
+empty/stopped startup, stop fading to silence, edits carried to the next part,
+side-chain input, chord hold/cue/loop behavior, chord/key crossfades, part recall
+and durations, play-through, part removal, host timeline following, chord
+registers, grain windows, layer notes, Swell fades, MIDI harmony recognition,
+recording, detected/overridden sample notes, bed tuning, and a piece generated
+from a recording.
+
+Stop reached RMS 0.0000000 after two seconds.
+Recording: 3.00 seconds, 24 bit, RMS 0.0284; maximum sample difference from
+the rendered signal was 0.00000012.
+Key-change crossfade: RMS before 0.117; lowest during transition 0.106.
+
+UI test
+-------
+Binary: build/GrainFieldSnapshot_artefacts/Release/GrainFieldSnapshot.app/Contents/MacOS/GrainFieldSnapshot
+All six synthetic interaction checks passed while the audio engine ran:
+1. Double-click resets a knob, including small subsequent pointer movement.
+2. An ordinary drag still changes the knob afterward.
+3. Clicking a part selects it without adding a part.
+4. Clicking Swell starts a fade; dragging takes manual control.
+5. Waveform-window dragging works; Shift-drag moves all windows.
+6. An imported sound displays its detected and manually assigned note.
+
+The suite also generated 16 snapshots, including wide, tall and small layouts.
+Snapshot generation succeeded; this was not a visual approval of every image.
+
+Scope and limitations
+---------------------
+These results verify offline processing and in-process synthetic UI events.
+They do not verify audible speaker output, hardware-device routing/latency,
+native standalone-window responsiveness, or real mouse/keyboard delivery.
+Native UI automation was blocked by macOS Accessibility permissions.
+Quick mode skips the optional full demo and listening-guide renders.
+
+Cleanup and retained files
+--------------------------
+Removed the temporary functional-test output directory (16 WAVs, 16 PNGs,
+two logs) and the resample capture created by this run: 35 generated files,
+approximately 75.3 MiB total. Verified that these outputs no longer exist.
+Test binaries and build products are retained; GF_BUILD_TESTS remains ON in
+the local build cache. No application source or installed plugins were changed
+for this verification.
+
+Reproduction (from the project root; use a new output directory)
+-------------------------------------------------------------
+mkdir -p build/functional-test/audio build/functional-test/ui
+build/GrainFieldRenderTest_artefacts/Release/GrainFieldRenderTest build/functional-test/audio quick
+build/GrainFieldSnapshot_artefacts/Release/GrainFieldSnapshot.app/Contents/MacOS/GrainFieldSnapshot build/functional-test/ui
+
+Tests can also create a resample capture under Music/Grain Field/Captures.
+Only remove captures positively identified as outputs of the test run.
