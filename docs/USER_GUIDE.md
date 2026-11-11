@@ -19,9 +19,9 @@ The script does the rest:
 - It compiles the plugin. **The first build takes 5 to 15 minutes**; later builds are much quicker.
 - It installs the plugin, replacing the earlier version.
 
-The first time Logic opens Grain Field it asks to **Lower Security Settings**. That's because the plugin was built on your Mac rather than signed by a paid Apple developer account. Click it to continue.
+Local builds are not automatically trusted or verified Developer ID-signed and notarized. Only build source you trust, and review `build-mac.sh` before running it: the script downloads build tools and dependencies, installs plugins, and replaces existing copies. If macOS or your DAW blocks a bundle, stop and read the exact warning. Do not lower system-wide security settings, disable Gatekeeper, or change your Mac's startup security policy to load Grain Field. See the downloaded-build guidance in section 10.
 
-If Terminal says something about the **Xcode license**, run `sudo xcodebuild -license accept`, delete the `build` folder inside this folder, and run step 3 again.
+If the build reports an **Xcode license** error, review and accept Apple's applicable developer-tools terms through Xcode or Apple's documented command-line process, then retry. Do not run administrator commands or delete build files solely because a generic troubleshooting instruction says to.
 
 When it says **Done**, the plugin is installed here:
 
@@ -247,17 +247,28 @@ To use your own effects, switch **inside** to **outside** (in the output module)
 - **Logic doesn't list it, or shows the old version:** open Logic > Settings > Plug-in Manager, select Grain Field and click **Reset & Rescan Selection**.
 - **Ableton doesn't list it:** check that VST3 system folders are on, then click Rescan.
 - **It's silent:** check that the round button shows two bars. If sync is on, Grain Field only plays while your song plays.
-- **The build stops with an error:** run the script again; a dropped download is the most common cause. If it still fails, copy the last 30 lines from Terminal and share them.
+- **macOS or your DAW blocks a downloaded bundle:** follow the source and checksum checks in section 10. Do not bypass a malware, damaged-file, or revoked-signature warning; get a fresh copy from the official release or ask the maintainer for help.
+- **The build stops with an error:** read the error before retrying. If it still fails, share the relevant final lines from Terminal after removing tokens, personal paths, and other private information.
 
 ## 10. Build in the cloud instead (optional)
 
-If you put this folder in a GitHub repository, the included workflow (`.github/workflows/build.yml`) builds the Mac plugins on GitHub's computers each time you push. Download them from the run's **Artifacts** section, then copy `Grain Field.component` and `Grain Field.vst3` into the Plug-Ins folders listed above.
+The included workflow (`.github/workflows/build.yml`) builds the Mac plugins on GitHub's computers each time you push. Download the ZIP from the [official release](https://github.com/wallstrom/grain-field/releases/tag/v0.7.0), or **Grain Field macOS** from a successful [Actions run](https://github.com/wallstrom/grain-field/actions). Repository access and a GitHub sign-in may be required for Actions artifacts.
 
-Files downloaded from the internet are blocked by macOS until you unblock them. Run this in Terminal after copying:
+### Verify and install a download
 
-```
-xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/Components/"Grain Field.component" ~/Library/Audio/Plug-Ins/VST3/"Grain Field.vst3"
-```
+1. Confirm that the download came from `wallstrom/grain-field` on GitHub, not an unknown mirror.
+2. For a release ZIP, compare its SHA-256 with the value in that release's notes. Run `shasum -a 256 "Grain-Field-v0.7.0-macOS-universal.zip"` from the download directory. If it differs, do not install the ZIP. A matching checksum confirms the published file's integrity, not that the software is malware-free or signed.
+3. Extract the ZIP, quit your DAW, and copy `Grain Field.component` and `Grain Field.vst3` into the user Plug-Ins folders listed in section 1. Copy `Grain Field.app` to your preferred applications folder. Back up existing copies if you need to retain an older build, and keep the included license and notices with redistributed copies.
+
+### macOS security warnings
+
+These downloads are not verified Developer ID-signed or notarized. macOS may block the app or plugins, and successful CI builds do not establish that they are safe to run.
+
+For the **standalone app**, if you trust the source and have verified the download, follow [Apple's guidance for safely opening apps](https://support.apple.com/en-us/102445). Where available, **Open Anyway** in System Settings > Privacy & Security approves that specific app after an attempted launch. The settings and wording vary by macOS version; managed Macs may not permit an exception.
+
+That app-specific process is not a guaranteed fix for **AU or VST3 plugins**. If your DAW blocks a plugin, consult the DAW's documentation or ask the maintainer for a signed/notarized build. Building reviewed source locally is another option, but does not guarantee security approval or working DAW integration.
+
+Do not disable Gatekeeper, lower startup security, or recursively remove quarantine attributes as a routine installation step. If macOS reports malware, a damaged file, or revoked authorization, do not override the warning; stop and contact the maintainer or your IT administrator.
 
 ## 11. Licence
 

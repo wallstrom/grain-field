@@ -23,20 +23,21 @@ Requires macOS 11+, Apple's command line tools, and internet access for the firs
 3. Load the AU in Logic Pro, the VST3 in Ableton Live, or open `build/GrainField_artefacts/Release/Standalone/Grain Field.app`.
 4. Choose a preset with **‹ ›**, then press **play**. New instances start empty and stopped.
 
-Prefer a cloud build? Open a successful [Actions run](https://github.com/wallstrom/grain-field/actions), download **Grain Field macOS** from its artifacts, and follow the [installation guide](docs/USER_GUIDE.md#1-build-it-on-your-mac).
+Prefer a download? Use the [v0.7.0 release](https://github.com/wallstrom/grain-field/releases/tag/v0.7.0), or download **Grain Field macOS** from a successful [Actions run](https://github.com/wallstrom/grain-field/actions). Follow the [downloaded-build installation and security guidance](docs/USER_GUIDE.md#10-build-in-the-cloud-instead-optional) before opening it. Downloaded builds are not verified Developer ID-signed or notarized, so macOS may block them.
 
 ## Status
 
-Verified **v0.7.0** on **2026-11-11**:
+Build/package verification for **v0.7.0** on **2026-11-11**:
 
-- [GitHub Actions build passed](https://github.com/wallstrom/grain-field/actions/runs/43067279398), including packaging and artifact upload.
-- Local functional tests passed: **40 audio checks in full mode and 6 synthetic UI checks**.
-- Scene persistence, DAW scene automation, and transport sync checks passed.
+- [Main build](https://github.com/wallstrom/grain-field/actions/runs/43075448018) and [tagged release build](https://github.com/wallstrom/grain-field/actions/runs/43075448159) passed for cleaned initial commit `47181b6`, including packaging and artifact upload.
+- The tagged ZIP passed integrity checks; all three bundles report version 0.7.0 and contain Apple silicon and Intel executables. The project license, both font notices, and sound credits matched the source files.
+- **9 local build-tool regression tests** passed before the cleaned commit was published.
+- **Historical audio/UI testing:** 40 audio checks in full mode and 6 synthetic UI checks passed before the history cleanup, including scene persistence, DAW scene automation, and transport sync. Those suites were not rerun for the refreshed release.
 - Manual listening, native window interaction, and real DAW integration remain unverified, as do distribution signing and notarization.
 
 Scenes replace timed parts: there is no internal timeline or automatic play-through. Existing v0.6 parts load as scenes; automate the **Scene** parameter in your DAW to arrange transitions.
 
-CI currently builds and packages; functional tests are run locally, not in CI. See the [test results](Tests/FunctionalTestResults.txt) for metrics, coverage, limitations, and historical v0.6 results.
+CI currently builds and packages; neither the audio/UI suites nor the Python build-tool tests run in CI. See the [recorded test results](Tests/FunctionalTestResults.txt) for historical metrics, coverage, limitations, and reproduction instructions.
 
 ## Documentation
 

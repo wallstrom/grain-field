@@ -1,6 +1,30 @@
+Build verification and historical functional test results
+========================================================
+
+Cleaned initial commit: 47181b600844efa2b33f40e9801ee3c578b4057f
+Verification date: 2026-11-11
+Main CI build/package/upload passed:
+https://github.com/wallstrom/grain-field/actions/runs/43075448018
+Tagged v0.7.0 CI build/package/upload passed:
+https://github.com/wallstrom/grain-field/actions/runs/43075448159
+
+The downloaded tagged ZIP passed integrity checks. AU, VST3, and standalone
+bundles report version 0.7.0 and contain arm64 and x86_64 executables.
+The project license, both font notices, and sound credits matched the source.
+Nine local Python build-tool regression tests passed before publication.
+CI runs neither these Python tests nor the audio/UI functional suites.
+
+The audio/UI results below are historical, from before the history cleanup.
+Their original commits and CI runs are no longer part of the published
+history. These suites were not rerun for the refreshed release. Local
+artifact paths describe the original test environment, not files included
+in the repository or a guarantee that those files are still available.
+
+Historical v0.7.0 functional results
+===================================
 Grain Field 0.7.0 - Functional Test Results
 Test date: 2026-11-11
-Source commit: d5066462e9cd2335eb56b80156f4bad2fb68264f
+Source: pre-cleanup v0.7.0 development snapshot
 Platform: macOS
 
 RESULT: Both rebuilt v0.7 test binaries exited with code 0.
@@ -43,9 +67,9 @@ Includes audio/test.log, ui/test.log, summary.json, renders, and snapshots.
 The resample test also created:
 ~/Music/Grain Field/Captures/Capture 2026-11-11 18.30.26.wav
 
-CI build/package/upload also passed:
-https://github.com/wallstrom/grain-field/actions/runs/43067279398
-CI does not run the functional test targets.
+The original CI build/package/upload also passed; that historical run was
+removed during cleanup. Current build verification is recorded above and
+does not constitute a rerun of these functional tests.
 
 Scope: offline audio processing and in-process synthetic UI events only.
 Audible speaker output, hardware routing/latency, native standalone window
