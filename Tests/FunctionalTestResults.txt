@@ -1,14 +1,36 @@
-Grain Field 0.8.0 - OLED fix validation (local, not released)
-=========================================================
+Grain Field 0.8.0 - Release validation
+====================================
 Test date: 2026-11-11
-Source: OLED UI fixes based on c6cc934, integrating main 1f5a891.
-See PR #1 for the fixes and integration commit; no 0.8.0 release is published.
+Local tested fixes: b37f615f40c6b4d8950d76354e87d9a52ee16f24
+Release tag: v0.8.0
+Release source: aed54777514ab9a65ee617430db5762dbe6fe07b
+The tested fixes and merged/tagged release have identical source trees.
+Published release:
+https://github.com/wallstrom/grain-field/releases/tag/v0.8.0
 Platform: macOS, native arm64, JUCE 8.0.15
 
 RESULT: render and snapshot targets rebuilt successfully.
 Audio: 40 checks passed in full mode.
 UI: 22 synthetic interaction/rendering checks passed.
 Python: 10 sound-tool/packaging tests passed, including current font notices.
+
+Tagged universal package verification
+-------------------------------------
+CI configure/build/package/upload passed for the release source:
+https://github.com/wallstrom/grain-field/actions/runs/43122411639
+Post-merge main CI also passed:
+https://github.com/wallstrom/grain-field/actions/runs/43121864281
+
+The published ZIP was downloaded anonymously and its integrity verified.
+AU, VST3, and standalone bundles report 0.8.0 and each contains arm64 and
+x86_64 executables. The project license, Silkscreen and VT323 font notices,
+and sound credits matched the tagged source files byte-for-byte.
+Asset: Grain-Field-v0.8.0-macOS-universal.zip
+SHA-256:
+1575a2e07924ce4d9668b8d57f360ef89f5f9ff7c436d37b9507124e692f75bd
+
+CI builds and packages; it does not run the local audio/UI or Python suites.
+These package checks verify integrity and metadata, not runtime safety.
 
 New UI coverage:
 - Both WALL edges and center work; adjacent gaps/value cells remain inert.
@@ -25,16 +47,18 @@ preset adoption and a real blend-progress signal. The full UI rerun passed.
 The meter displays RMS with a highest-RMS hold, not sample-peak clipping.
 No DSP, parameter IDs, saved-state formats, or factory presets were changed.
 
-Logs: build/oled-fixed-hij1ruym/audio/test.log (full audio pass),
+Original local log paths (not committed; the temporary review worktree
+has since been removed, so these paths record provenance, not availability):
+build/oled-fixed-hij1ruym/audio/test.log (full audio pass),
 build/oled-fixed-ui-_apmossb/test.log (all 22 UI checks passing).
 Screenshots were regenerated at 2x; representative normal, blend,
 countdown, chord-hover and scaled states were visually inspected.
 The Python suite executes the real workflow's packaging shell against
 temporary dummy bundles and checks the current font notices byte-for-byte.
 
-Local test targets are arm64 only. See PR #1 for the separate CI status
-of these fixes. Native mouse/window delivery, manual listening, real DAW behavior,
-hardware latency/routing, signing and notarization remain unverified.
+Local test execution was arm64 only; Intel runtime behavior was not tested.
+Native mouse/window delivery, manual listening, real DAW behavior, hardware
+latency/routing, Developer ID signing and notarization remain unverified.
 
 Historical v0.7.1 validation
 ==========================

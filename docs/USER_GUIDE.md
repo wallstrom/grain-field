@@ -1,6 +1,8 @@
 # Grain Field User Guide
 
-Version 0.8.0 — in development. [Back to the README](../README.md).
+Version 0.8.0. [Back to the README](../README.md).
+
+The [published v0.8.0 release](https://github.com/wallstrom/grain-field/releases/tag/v0.8.0) includes universal macOS AU, VST3, and standalone bundles. For downloaded-build installation and verification, see section 10; section 1 covers building from source.
 
 This experimental build is for evaluation, not production use. Developer ID signing/notarization and real DAW integration remain unverified. Back up projects and existing plugin copies before testing.
 
@@ -138,11 +140,11 @@ Eight slots, in their own row under the transport. The texture and drones are tu
 - **Octave** is how high the chord sits: **-1** is darker, **0** is where it would sit by itself, **+1** and **+2** are brighter. A chord moved from 0 shows it beside its name, so you can tell before you get there whether the next chord will be dark or bright.
 - **Queue a chord:** click it. It's marked **next** and comes in when the playing chord's bars are done. Click it again and it's marked **at bar**: it comes in at the next bar line instead. A third click un-queues it.
 - **now** (on hover, bottom of the slot): go to that chord right away.
-- **Change a chord:** hover a slot and click the small pencil (or click the one that's playing). **remove** is in the same pop-up.
+- **Change a chord:** hover a slot and click **EDIT** (or click the one that's playing). **remove** is in the same pop-up.
 - **Reorder:** drag a slot left or right.
 - **loop** (the two arrows left of the chords): what happens when a chord's bars are done and nothing is queued. Dim, the chord **stays** until you queue another. Lit, it moves on to the next chord, round and round. The bars follow your song's tempo.
 - **In or out of the loop:** with loop on, each slot has a small dot at its top right. Click it to take the chord out of the loop. Chords that are out only play when you queue them.
-- The chords are counted from the **root** (shown as **on d** above them, and set with **root ‹ d ›** to their right). Moving the root moves every chord together; in its list, the two roots a fifth away are marked **close**, because they share most of their notes and are the gentlest places to go.
+- The chords are counted from the **root** in the middle of the transport. Moving the root moves every chord together; in its list, the two roots a fifth away are marked **close**, because they share most of their notes and are the gentlest places to go.
 - **dissolve** is how long one chord or root takes to melt into the next, from a third of a second to twenty. **line** sets how present the melody is.
 
 **With a MIDI keyboard.** You never need one, but if one is connected (and Grain Field's track is selected, so your DAW sends it the keys), playing sets the harmony:
@@ -249,18 +251,18 @@ To use your own effects, switch **inside** to **outside** (in the output module)
 
 - **Logic doesn't list it, or shows the old version:** open Logic > Settings > Plug-in Manager, select Grain Field and click **Reset & Rescan Selection**.
 - **Ableton doesn't list it:** check that VST3 system folders are on, then click Rescan.
-- **It's silent:** check that the round button shows two bars. If sync is on, Grain Field only plays while your song plays.
+- **It's silent:** check that the play button shows two bars. If sync is on, Grain Field only plays while your song plays.
 - **macOS or your DAW blocks a downloaded bundle:** follow the source and checksum checks in section 10. Do not bypass a malware, damaged-file, or revoked-signature warning; get a fresh copy from the official release or ask the maintainer for help.
 - **The build stops with an error:** read the error before retrying. If it still fails, share the relevant final lines from Terminal after removing tokens, personal paths, and other private information.
 
 ## 10. Build in the cloud instead (optional)
 
-The included workflow (`.github/workflows/build.yml`) builds the Mac plugins on GitHub's computers each time you push. Download the ZIP from the [official v0.7.1 release](https://github.com/wallstrom/grain-field/releases/tag/v0.7.1), or **Grain Field macOS** from a successful [Actions run](https://github.com/wallstrom/grain-field/actions). Access to source and downloads depends on repository visibility and permissions; a GitHub sign-in may be required for Actions artifacts.
+The included workflow (`.github/workflows/build.yml`) builds the Mac plugins on GitHub's computers each time you push. Download `Grain-Field-v0.8.0-macOS-universal.zip` from the [official v0.8.0 release](https://github.com/wallstrom/grain-field/releases/tag/v0.8.0), or **Grain Field macOS** from a successful [Actions run](https://github.com/wallstrom/grain-field/actions). Choose the plugin ZIP under **Assets**, not GitHub's source-code archives. A GitHub sign-in may be required for Actions artifacts.
 
 ### Verify and install a download
 
 1. Confirm that the download came from `wallstrom/grain-field` on GitHub, not an unknown mirror.
-2. For a release ZIP, compare its SHA-256 with the value in that release's notes. Run `shasum -a 256 "Grain-Field-v0.7.1-macOS-universal.zip"` from the download directory. If it differs, do not install the ZIP. A matching checksum confirms the published file's integrity, not that the software is malware-free or signed.
+2. For a release ZIP, compare its SHA-256 with the value in that release's notes. Run `shasum -a 256 "Grain-Field-v0.8.0-macOS-universal.zip"` from the download directory. If it differs, do not install the ZIP. A matching checksum confirms the published file's integrity, not that the software is malware-free or signed.
 3. Extract the ZIP, quit your DAW, and copy `Grain Field.component` and `Grain Field.vst3` into the user Plug-Ins folders listed in section 1. Copy `Grain Field.app` to your preferred applications folder. Back up existing copies if you need to retain an older build, and keep the included license and notices with redistributed copies.
 
 ### macOS security warnings
