@@ -145,6 +145,16 @@ private:
     juce::ValueTree pieceToTree();
     void pieceFromTree (const juce::ValueTree& tree);
     gf::SourceData::Ptr resolveSource (const juce::String& id, int slotForFallback);
+    gf::SourceData::Ptr resolveUnworn (const juce::String& id, int slotForFallback);
+    // Wear: while it is up, every sound the piece plays is its own worn copy, made the first time.
+    gf::SourceData::Ptr wornCopyOf (gf::SourceData::Ptr s);
+    bool wearOn() const { return apvts.getRawParameterValue (gf::ids::wear)->load() > 0.001f; }
+    void wearEverything();
+    void keepWear (bool all);   // brings the pictures and the files of worn sounds up to date
+    std::map<juce::String, gf::SourceData::Ptr> wornCopies;   // by the original's id
+    juce::CriticalSection wornLock;
+    int wornTicks = 0;
+    bool woreBefore = false;
     juce::String partLabel (int index) const;
 
     std::array<juce::String, gf::numSlots> sourceIds;

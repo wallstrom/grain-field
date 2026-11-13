@@ -238,6 +238,24 @@ private:
     std::atomic<float>* rawHold = nullptr;
     std::atomic<float>* rawTempo = nullptr;
     std::atomic<float>* rawArrive = nullptr;
+    std::atomic<float>* rawWear = nullptr;
+
+    // Wear: stretches of worn sounds that have just been read, waiting to be eroded a little more.
+    struct WearSpan { SourceData* s = nullptr; int start = 0, pos = 0, end = 0, dropA = 0, dropB = 0; float dropDepth = 0.0f; };
+    static constexpr int maxWearSpans = 64;
+    std::array<WearSpan, maxWearSpans> wearSpans {};
+    int wearHead = 0, wearCount = 0, smearWearTick = 0;
+    std::array<float, 2> wearLp {}, wearHiss {};
+    void queueWear (const SourceData* s, double from, double to);
+    void runWear (int budget);
+
+    // Voices made of the sound itself: its spectrum, held, laid on every note of the chord.
+    std::vector<float> envBuf, fineBuf, prefix, vOlaL, vOlaR;
+    std::array<std::vector<float>, 2> vMag;
+    float smearRefMidi = -1.0f, voiceMixNow = 0.7f;
+    static constexpr float spectralVoiceGain = 0.2f;   // set so the voices match the resonators in level
+    void makeVoiceFrame();
+    void addVoiceSpectrum (std::vector<float>& mag, float f0, float w, bool pitched, float refHz);
     std::atomic<int> cue { -1 }, cueWhen { 0 };
     std::array<bool, 128> keysHeld {}, keysRecent {};   // down now, and pressed since the last chord was read
     int keysSettle = -1;                                // samples until what was played is read as one chord

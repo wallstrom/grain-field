@@ -74,6 +74,7 @@ Engine::Engine (juce::AudioProcessorValueTreeState& state) : apvts (state)
     rawHold = apvts.getRawParameterValue (ids::hold);
     rawTempo = apvts.getRawParameterValue (ids::tempo);
     rawArrive = apvts.getRawParameterValue (ids::arrive);
+    rawWear = apvts.getRawParameterValue (ids::wear);
     arrive = rawArrive->load();
     updateArrive (1.0e3f);
     for (auto& b : partBlendA) b.store (-1.0f);
@@ -120,6 +121,13 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
     sedFrame.assign ((size_t) fftSize, 0.0f);
     olaL.assign ((size_t) fftSize, 0.0f);
     olaR.assign ((size_t) fftSize, 0.0f);
+    vOlaL.assign ((size_t) fftSize, 0.0f);
+    vOlaR.assign ((size_t) fftSize, 0.0f);
+    envBuf.assign ((size_t) fftSize / 2 + 1, 0.0f);
+    fineBuf.assign ((size_t) fftSize / 2 + 1, 0.0f);
+    prefix.assign ((size_t) fftSize / 2 + 2, 0.0f);
+    for (auto& v : vMag) v.assign ((size_t) fftSize / 2 + 1, 0.0f);
+    wearHead = wearCount = 0;
     olaPos = 0; hopCount = 0;
     sediment.assign ((size_t) (sr * sedimentSeconds), 0.0f);
     sedWrite = 0; sedPower = 0.0f;
@@ -757,6 +765,7 @@ void Engine::spawnGrain (int delay, const SourceData* s, float posNorm, float du
         if (off + span > n - 3) off = juce::jmax (0.0, n - 3 - span);
         g.inc = rev ? -inc : inc;
         g.pos = rev ? off + span : off;
+        queueWear (s, off, off + span);
     }
 
     pan = juce::jlimit (-1.0f, 1.0f, pan);
@@ -1142,7 +1151,12 @@ void Engine::makeSmearFrame()
         const float* c1 = s->audio.getNumChannels() > 1 ? s->audio.getReadPointer (1) : c0;
         double ratio = s->sampleRate / sr;
         const float m = s->noteFor (smearPos);
-        if (m > 0.0f) ratio *= std::pow (2.0, (snapToChord (m, drStep.pc) - m) / 12.0);
+        smearRefMidi = -1.0f;
+        if (m > 0.0f)
+        {
+            smearRefMidi = snapToChord (m, drStep.pc);
+            ratio *= std::pow (2.0, (smearRefMidi - m) / 12.0);
+        }
         double start = smearPos + (double) (rnd() * (float) N * (0.2f + 0.8f * breath));
         if (s->live)   // the last few seconds of what's sent in
             start = (double) liveWrite - N - 64 - (double) rng.nextFloat() * juce::jmax (0.0, juce::jmin ((double) liveFilled - N - 64, 4.0 * sr));
@@ -1157,6 +1171,8 @@ void Engine::makeSmearFrame()
             frame[(size_t) i] = v;
             srcPow += v * v;
         }
+        // Reading the drones' sound wears it, a little, every so often.
+        if (! s->live && ++smearWearTick >= 8) { smearWearTick = 0; queueWear (s, start, start + N * ratio); }
         if (! frozen)
         {
             smearPos += hop * (0.03 + 0.3 * breath) * s->sampleRate / sr;
@@ -1164,7 +1180,7 @@ void Engine::makeSmearFrame()
         }
         readPosPub[slotTone].store ((float) (smearPos / (double) n), std::memory_order_relaxed);
     }
-    else std::fill (frame.begin(), frame.end(), 0.0f);
+    else { std::fill (frame.begin(), frame.end(), 0.0f); smearRefMidi = -1.0f; }
     const float srcRms = std::sqrt (srcPow / (float) N);
 
     // The sediment: what the texture has left behind
@@ -1218,6 +1234,170 @@ void Engine::makeSmearFrame()
             if (idx >= N) idx -= N;
             ola[(size_t) idx] += fftBuf[(size_t) i] * window[(size_t) i] * olaScale;
         }
+    }
+    makeVoiceFrame();
+}
+
+/* ---------------- Voices made of the sound ---------------- */
+
+void Engine::addVoiceSpectrum (std::vector<float>& mag, float f0, float w, bool pitched, float refHz)
+{
+    // One note of the chord, made of the sound: its spectral envelope (its colour, its formants) stays where
+    // it is, while its fine structure (its partials) is moved so that its note lands on f0. A sound with no
+    // note gets partials of its own: its noise is gathered into the harmonics of f0, like wind singing a note.
+    const int K = fftSize / 2;
+    const float binHz = (float) sr / (float) fftSize;
+    if (f0 < 20.0f || w < 1.0e-5f) return;
+    const float wid = juce::jlimit (0.05f, 0.45f, 1.4f * binHz / f0);
+    const float invWid = 1.0f / wid, step = binHz / f0, shift = refHz / f0;
+    const int k0 = juce::jmax (1, (int) (0.5f * f0 / binHz));
+    for (int k = k0; k < K; ++k)
+    {
+        const float h = (float) k * step;
+        const float d = (h - std::round (h)) * invWid;
+        const float peak = d * d < 1.0f ? (1.0f - d * d) * (1.0f - d * d) : 0.0f;
+        float shape;
+        if (pitched)
+        {
+            const float kk = (float) k * shift;
+            if (kk >= (float) (K - 1)) break;
+            const int i0 = (int) kk;
+            const float fs = fineBuf[(size_t) i0] + (fineBuf[(size_t) i0 + 1] - fineBuf[(size_t) i0]) * (kk - (float) i0);
+            shape = fs * (0.15f + 0.85f * peak);
+        }
+        else shape = 1.6f * peak;
+        mag[(size_t) k] += w * envBuf[(size_t) k] * shape;
+    }
+}
+
+void Engine::makeVoiceFrame()
+{
+    const int N = fftSize, K = N / 2;
+    for (auto& v : vMag) std::fill (v.begin(), v.end(), 0.0f);
+    if (voiceMixNow < 0.001f) return;
+
+    // The envelope: the spectrum smoothed over a width that grows with frequency. What is left over
+    // (the spectrum divided by it) is the fine structure: where the partials are.
+    prefix[0] = 0.0f;
+    for (int k = 0; k <= K; ++k) prefix[(size_t) k + 1] = prefix[(size_t) k] + frame[(size_t) k];
+    for (int k = 0; k <= K; ++k)
+    {
+        const int r = juce::jmax (3, (int) ((float) k * 0.09f));
+        const int a = juce::jmax (0, k - r), b = juce::jmin (K, k + r);
+        envBuf[(size_t) k] = (prefix[(size_t) b + 1] - prefix[(size_t) a]) / (float) (b - a + 1);
+        fineBuf[(size_t) k] = frame[(size_t) k] / (envBuf[(size_t) k] + 1.0e-9f);
+    }
+
+    const bool pitched = smearRefMidi > 0.0f;
+    const float refHz = pitched ? midiToHz (smearRefMidi) : 0.0f;
+    const float bodyEffNow = bodyEff, breath = cur (drBreath);
+    for (int v = 0; v < numVoices; ++v)
+    {
+        const auto& V = voices[(size_t) v];
+        if (V.amp < 1.0e-4f) continue;
+        const bool isDrone = v < 3, isLine = v == lineVoice;
+        const float cents = (isLine ? 1.5f : isDrone ? 2.0f + 4.0f * bodyEffNow : 4.0f + 10.0f * bodyEffNow) + breath * 6.0f * V.lfo;
+        const float spreadL = std::pow (2.0f, -cents / 1200.0f), spreadR = std::pow (2.0f, cents / 1200.0f);
+        const float wNew = V.amp * V.gNew, wOld = V.xfade < 1.0f ? V.amp * V.gOld : 0.0f;
+        addVoiceSpectrum (vMag[0], V.hz * spreadL, wNew, pitched, refHz);
+        addVoiceSpectrum (vMag[1], V.hz * spreadR, wNew, pitched, refHz);
+        if (wOld > 1.0e-5f)
+        {
+            addVoiceSpectrum (vMag[0], V.oldHz * spreadL, wOld, pitched, refHz);
+            addVoiceSpectrum (vMag[1], V.oldHz * spreadR, wOld, pitched, refHz);
+        }
+    }
+
+    // Random phases again: the voices are held, never played from the start.
+    for (int ch = 0; ch < 2; ++ch)
+    {
+        const auto& mag = vMag[(size_t) ch];
+        for (int k = 0; k <= K; ++k)
+        {
+            const float m = mag[(size_t) k];
+            if (k == 0 || k == K) { fftBuf[(size_t) (2 * k)] = 0.0f; fftBuf[(size_t) (2 * k + 1)] = 0.0f; continue; }
+            const int r = rng.nextInt (4096);
+            fftBuf[(size_t) (2 * k)] = m * cosTab[(size_t) r];
+            fftBuf[(size_t) (2 * k + 1)] = m * sinTab[(size_t) r];
+        }
+        fft.performRealOnlyInverseTransform (fftBuf.data());
+        auto& ola = ch == 0 ? vOlaL : vOlaR;
+        for (int i = 0; i < N; ++i)
+        {
+            int idx = olaPos + i;
+            if (idx >= N) idx -= N;
+            ola[(size_t) idx] += fftBuf[(size_t) i] * window[(size_t) i];
+        }
+    }
+}
+
+/* ---------------- Wear ---------------- */
+
+void Engine::queueWear (const SourceData* s, double from, double to)
+{
+    if (s == nullptr || ! s->worn || s->live || rawWear == nullptr || rawWear->load() < 0.001f || wearCount >= maxWearSpans) return;
+    const int n = s->audio.getNumSamples();
+    int a = (int) juce::jmin (from, to), b = (int) std::ceil (juce::jmax (from, to));
+    a = juce::jlimit (0, n, a); b = juce::jlimit (0, n, b);
+    if (b - a < 16) return;
+    auto& w = wearSpans[(size_t) ((wearHead + wearCount) % maxWearSpans)];
+    // A worn sound is this piece's own copy, made for it, so it may be written to here.
+    w.s = const_cast<SourceData*> (s);
+    w.start = w.pos = a; w.end = b;
+    // Now and then a pass leaves a hole: a stretch that comes back quieter every time.
+    const float amt = std::pow (rawWear->load(), 1.5f);
+    if (rng.nextFloat() < 0.35f * amt)
+    {
+        const int len = (int) (s->sampleRate * (0.03 + 0.4 * rng.nextFloat()));
+        w.dropA = a + rng.nextInt (juce::jmax (1, b - a));
+        w.dropB = juce::jmin (b, w.dropA + len);
+        w.dropDepth = 0.15f + 0.35f * rng.nextFloat();
+    }
+    else w.dropA = w.dropB = 0;
+    ++wearCount;
+}
+
+void Engine::runWear (int budget)
+{
+    // Every pass over a stretch takes a little of its air (the highs), adds a little hiss, rounds its
+    // peaks off a little, and deepens any hole in it. It adds up, and it never comes back.
+    const float wear = rawWear != nullptr ? rawWear->load() : 0.0f;
+    if (wear < 0.001f) { wearCount = 0; return; }
+    const float eps = 0.1f * std::pow (wear, 1.5f);
+    while (budget > 0 && wearCount > 0)
+    {
+        auto& w = wearSpans[(size_t) wearHead];
+        auto* s = w.s;
+        const int chans = s->audio.getNumChannels();
+        const float aLp = 1.0f - std::exp (-twoPi * 2600.0f / (float) s->sampleRate);
+        if (w.pos == w.start) for (int c = 0; c < 2; ++c) { wearLp[(size_t) c] = s->audio.getSample (juce::jmin (c, chans - 1), w.start); wearHiss[(size_t) c] = 0.0f; }
+        const int stop = juce::jmin (w.end, w.pos + budget);
+        const float dropLen = (float) juce::jmax (1, w.dropB - w.dropA);
+        for (int c = 0; c < chans; ++c)
+        {
+            float* d = s->audio.getWritePointer (c);
+            float lp = wearLp[(size_t) c], hiss = wearHiss[(size_t) c];
+            for (int i = w.pos; i < stop; ++i)
+            {
+                float x = d[i];
+                lp += aLp * (x - lp);
+                x += eps * (lp - x);
+                hiss += 0.6f * (rnd() - hiss);
+                x += eps * 0.01f * hiss;
+                x -= eps * 0.25f * (x - std::tanh (1.8f * x) / 1.8f);
+                if (i >= w.dropA && i < w.dropB)
+                {
+                    const float t = (float) (i - w.dropA) / dropLen;
+                    x *= 1.0f - eps * 4.0f * w.dropDepth * (0.5f - 0.5f * std::cos (twoPi * t));
+                }
+                d[i] = x;
+            }
+            wearLp[(size_t) c] = lp; wearHiss[(size_t) c] = hiss;
+        }
+        budget -= stop - w.pos;
+        w.pos = stop;
+        s->wornChanged.store (true, std::memory_order_relaxed);
+        if (w.pos >= w.end) { wearHead = (wearHead + 1) % maxWearSpans; --wearCount; }
     }
 }
 
@@ -1418,6 +1598,7 @@ void Engine::process (const Outputs& out, int numSamples, juce::AudioPlayHead* p
         if (running) scheduleTexture (m, dt);
         if (running && cur (drBed) > 0.001f) scheduleBed (m);
         renderGrains (m);
+        runWear (m * 24);
 
         // Per-block settings
         const float merge = cur (txFeed);
@@ -1440,6 +1621,8 @@ void Engine::process (const Outputs& out, int numSamples, juce::AudioPlayHead* p
         const float bedToDrones = cur (drBed) * merge * 0.8f;
         const float fill = mass * (1.0f + bodyEff * 7.0f);
         const float lineAmt = cur (hmLine);
+        voiceMixNow = cur (drVoice);
+        const float combMix = std::sqrt (1.0f - voiceMixNow), voiceGain = std::sqrt (voiceMixNow) * spectralVoiceGain;
         const float drive = 1.0f + 1.6f * mass + 0.6f * cur (drColour);
 
         // Changes of chord and key are crossfades, as long as Dissolve says.
@@ -1563,6 +1746,8 @@ void Engine::process (const Outputs& out, int numSamples, juce::AudioPlayHead* p
             --hopCount;
             const float sL = olaL[(size_t) olaPos], sR = olaR[(size_t) olaPos];
             olaL[(size_t) olaPos] = 0.0f; olaR[(size_t) olaPos] = 0.0f;
+            const float vL = vOlaL[(size_t) olaPos], vR = vOlaR[(size_t) olaPos];
+            vOlaL[(size_t) olaPos] = 0.0f; vOlaR[(size_t) olaPos] = 0.0f;
             if (++olaPos >= fftSize) olaPos = 0;
 
             float gl = 0.0f, gr = 0.0f;
@@ -1591,6 +1776,9 @@ void Engine::process (const Outputs& out, int numSamples, juce::AudioPlayHead* p
                 gl += (cL * (0.5f + 0.5f * w) + cR * (0.5f - 0.5f * w)) * V.amp;
                 gr += (cR * (0.5f + 0.5f * w) + cL * (0.5f - 0.5f * w)) * V.amp;
             }
+            // The resonators and the voices made of the sound, as Voice sets.
+            gl = gl * combMix + vL * voiceGain;
+            gr = gr * combMix + vR * voiceGain;
             droneTone[0].tick (gl, bp, lp); gl = lp;
             droneTone[1].tick (gr, bp, lp); gr = lp;
             gl = std::tanh (gl * drive) / drive * (1.0f + 0.25f * mass);

@@ -33,6 +33,11 @@ struct SourceData : juce::ReferenceCountedObject
     bool wholeNote = false;
     std::atomic<float> rootSet { rootAuto };
 
+    // Wear: a worn sound is this piece's own copy of a sound, which is eroded wherever it is played.
+    // Only the audio thread writes into it; the original sound is never touched.
+    bool worn = false;
+    std::atomic<bool> wornChanged { false };   // eroded since the picture and the file were last brought up to date
+
     // The note to tune from at a position: what you set, or else what the sound's own map says.
     float noteFor (double samplePos) const
     {
@@ -86,12 +91,19 @@ public:
     // Message thread. Decodes a file (WAV, AIFF, FLAC, MP3, Ogg...). Returns nullptr on failure.
     SourceData::Ptr loadFile (const juce::File& file, juce::String& error);
 
+    // Message thread. A worn copy of a sound, saved as a WAV file in Music/Grain Field/Worn, so the wear
+    // stays with the piece. Its notes come with it.
+    SourceData::Ptr addWorn (const SourceData& from);
+    static juce::File getWornFolder();
+    // Message thread. Writes a worn sound back to its file, as it is now.
+    static bool saveWorn (const SourceData& s);
+
     // Message thread. Adds audio captured from the output and saves it as a WAV file.
     SourceData::Ptr addCapture (const juce::AudioBuffer<float>& audio, double sampleRate, const juce::String& name = {});
 
+    static void computePeaks (SourceData& s);
 private:
     SourceData::Ptr add (SourceData::Ptr s);
-    static void computePeaks (SourceData& s);
 public:
     // Listens for the note a sound keeps returning to (a hum, wind in wires, a voice) and, if the sound
     // has no note map, makes it one note long so its grains can be tuned by the smallest step.

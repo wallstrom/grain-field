@@ -27,6 +27,7 @@ enum P
     // Drones: the growing body
     drGrow, drBody, drBreath, drColour, drSub, drBed, drLevel,
     drTape, drSpace,
+    drVoice,                  // what the drones are made of: tuned resonators, or the sound itself
     drNote, bedNote,          // where the drones and the bed play, counted from the root
     // Harmony
     hmKey, hmLine, hmDissolve,
@@ -59,7 +60,7 @@ bool swellMoves (int p);
 namespace ids
 {
     inline const juce::String volume = "volume", part = "part", blend = "blend", play = "play",
-                              sync = "sync", arrive = "arrive", spaceMode = "spacemode", freeze = "freeze", hold = "hold", tempo = "tempo";
+                              sync = "sync", arrive = "arrive", wear = "wear", spaceMode = "spacemode", freeze = "freeze", hold = "hold", tempo = "tempo";
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout createLayout();

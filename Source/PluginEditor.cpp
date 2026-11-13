@@ -15,7 +15,7 @@ GrainFieldEditor::GrainFieldEditor (GrainFieldProcessor& p)
       texturePicture (p), dronesPicture (p), outputPicture (p), swell (p), play (p),
       sync (p, ids::sync, "sync", false), freeze (p, ids::freeze, "freeze", true),
       spaceMode (p),
-      textureLevel (p, txLevel, "level"), dronesLevel (p, drLevel, "level"), arrive (p, ids::arrive, "arrive"), volume (p, ids::volume, "volume"), take (p),
+      textureLevel (p, txLevel, "level"), dronesLevel (p, drLevel, "level"), arrive (p, ids::arrive, "arrive"), wear (p, ids::wear, "wear"), voice (p, drVoice, "voice"), volume (p, ids::volume, "volume"), take (p),
       textureStage (p, gf::Engine::stTexture, "texture", false), dronesStage (p, gf::Engine::stDrones, "drones", false),
       bedStage (p, gf::Engine::stBed, "", true)
 {
@@ -91,6 +91,8 @@ GrainFieldEditor::GrainFieldEditor (GrainFieldProcessor& p)
     setHint (freeze, "freeze", "Hold the texture where it is. The drones keep breathing");
     setHint (textureLevel, "texture level", "How loud the texture is");
     setHint (dronesLevel, "drones level", "How loud the drones are");
+    setHint (wear, "wear", "Erodes the sounds wherever they play: the highs go, hiss and holes come, and it never comes back. The originals are untouched; the worn sounds are this piece's own and are saved with it");
+    setHint (voice, "voice", "What the drones are made of: strings ringing in tune on the left, the drones' own sound held on every note of the chord on the right");
     setHint (arrive, "arrive", "From silence to everything: the bed comes in first, then a few grains, the drones, the sub, and the room opens last. Automate it for a fade-in");
     setHint (volume, "volume", "How loud Grain Field is. The last thing before it leaves");
     setHint (bedStage, "bed", "Solo to hear only the bed underneath, mute to take it out");
@@ -202,7 +204,7 @@ GrainFieldEditor::GrainFieldEditor (GrainFieldProcessor& p)
     setHint (textureNote, "where the texture plays", "Counted from the root: on it, a fifth or a fourth above, or an octave up or down. All three sounds move with it, each keeping its own step; the drones and the bed stay");
     setHint (resample, "resample", "Records the last 8 seconds of everything you hear and adds it to the texture as a sound of its own, so the piece can feed on itself. It takes the first empty sound, or the one you use least");
     for (auto* c : std::initializer_list<juce::Component*> { &texturePicture, &dronesPicture, &outputPicture, &textureSources, &droneSources,
-                                                              &textureLevel, &dronesLevel, &arrive, &textureStage, &dronesStage, &bedStage, &resample, &spaceMode, &textureNote })
+                                                              &textureLevel, &dronesLevel, &arrive, &wear, &voice, &textureStage, &dronesStage, &bedStage, &resample, &spaceMode, &textureNote })
         canvas.addAndMakeVisible (c);
     knob (txDensity, "density"); knob (txLength, "length"); knob (txSmear, "smear"); knob (txReverse, "reverse");
     knob (txSpread, "spread"); knob (txDetail, "detail"); knob (txTape, "tape"); knob (txSpace, "space");
@@ -363,7 +365,9 @@ void GrainFieldEditor::layout()
         textureStage.setBounds (ri (x, rowY, 96.0f, rowH));
         textureNote.setBounds (ri (x + w - 100.0f, rowY, 100.0f, rowH));
         resample.setBounds (ri (x + w - 210.0f, rowY, 108.0f, rowH));
-        textureLevel.setBounds (ri (x + 106.0f, rowY, w - 326.0f, rowH));
+        const float lw = std::floor ((w - 326.0f) * 0.5f);
+        textureLevel.setBounds (ri (x + 106.0f, rowY, lw - 4.0f, rowH));
+        wear.setBounds (ri (x + 106.0f + lw + 4.0f, rowY, w - 326.0f - lw - 4.0f, rowH));
         texturePicture.setBounds (ri (x, yPic, w, ySrc - 8.0f - yPic));
         textureSources.setBounds (ri (x, ySrc, w, srcH));
         placeKnobs (2, 8, 4, x, w, yKnobs);
@@ -383,7 +387,9 @@ void GrainFieldEditor::layout()
     {
         const float x = xC + in, w = colC - 2.0f * in;
         dronesStage.setBounds (ri (x, rowY, 96.0f, rowH));
-        dronesLevel.setBounds (ri (x + 106.0f, rowY, w - 106.0f, rowH));
+        const float lw = std::floor ((w - 106.0f) * 0.5f);
+        dronesLevel.setBounds (ri (x + 106.0f, rowY, lw - 4.0f, rowH));
+        voice.setBounds (ri (x + 106.0f + lw + 4.0f, rowY, w - 106.0f - lw - 4.0f, rowH));
         dronesPicture.setBounds (ri (x, yPic, w, ySrc - 8.0f - yPic));
         droneSources.setBounds (ri (x, ySrc, w, srcH));
         bedStage.setBounds (ri (x + w - 96.0f, ySrc + 2.0f * (float) SourcesView::rowH + 1.0f, 96.0f, (float) SourcesView::rowH - 3.0f));
@@ -639,6 +645,8 @@ void GrainFieldEditor::timerCallback()
     textureLevel.tick();
     dronesLevel.tick();
     arrive.tick();
+    wear.tick();
+    voice.tick();
     swell.tick();
     sync.tick();
     freeze.tick();

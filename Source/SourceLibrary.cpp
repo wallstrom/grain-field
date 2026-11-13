@@ -183,6 +183,49 @@ SourceData::Ptr SourceLibrary::loadFile (const juce::File& file, juce::String& e
     s->audio.setSize (chans, len);
     reader->read (&s->audio, 0, len, 0, true, chans > 1);
     findCoreNote (*s);
+    s->worn = file.isAChildOf (getWornFolder());
+    return add (s);
+}
+
+juce::File SourceLibrary::getWornFolder()
+{
+    return juce::File::getSpecialLocation (juce::File::userMusicDirectory).getChildFile ("Grain Field").getChildFile ("Worn");
+}
+
+bool SourceLibrary::saveWorn (const SourceData& s)
+{
+    if (! s.worn || ! s.id.startsWith ("file:")) return false;
+    const juce::File file (s.id.fromFirstOccurrenceOf ("file:", false, false));
+    const auto tmp = file.getSiblingFile (file.getFileName() + ".part");
+    {
+        std::unique_ptr<juce::OutputStream> stream (tmp.createOutputStream());
+        if (stream == nullptr) return false;
+        juce::WavAudioFormat wav;
+        auto opts = juce::AudioFormatWriterOptions().withSampleRate (s.sampleRate).withNumChannels (s.audio.getNumChannels()).withBitsPerSample (24);
+        auto writer = wav.createWriterFor (stream, opts);
+        if (writer == nullptr || ! writer->writeFromAudioSampleBuffer (s.audio, 0, s.audio.getNumSamples())) { tmp.deleteFile(); return false; }
+    }
+    return tmp.moveFileTo (file);
+}
+
+SourceData::Ptr SourceLibrary::addWorn (const SourceData& from)
+{
+    auto folder = getWornFolder();
+    folder.createDirectory();
+    const auto file = folder.getNonexistentChildFile (from.name + " worn " + juce::Time::getCurrentTime().formatted ("%Y-%m-%d %H.%M.%S"), ".wav", false);
+
+    SourceData::Ptr s = new SourceData();
+    s->name = (from.name + " worn").substring (0, 28);
+    s->sampleRate = from.sampleRate;
+    s->audio = from.audio;
+    s->notes = from.notes;
+    s->coreMidi = from.coreMidi;
+    s->coreStrength = from.coreStrength;
+    s->wholeNote = from.wholeNote;
+    s->rootSet.store (from.rootSet.load());
+    s->worn = true;
+    s->id = "file:" + file.getFullPathName();
+    if (! saveWorn (*s)) s->id = "worn:" + juce::Uuid().toString();   // can't be saved: it wears for this session only
     return add (s);
 }
 

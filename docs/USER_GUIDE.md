@@ -80,6 +80,10 @@ A slow body holding the chord.
 
 The narrow strip between texture and drones: what happens to everything on its way out. **drive** (saturation, up to distortion), **echo** (a tape echo on the texture, in time), **room** (how big the room is that both modules are sent into, from small to vast) and **volume**. In the picture, the core is how loud it is and grows a halo with drive, the square rings are the room, the squares rising off are the echo, and the grains crossing over show how much the texture and drones are merging. The **RMS** meter on the right uses a -60 to 0 dBFS scale, with a short hold of the highest RMS reading. Its red zone starts at -1 dBFS RMS; it is not a sample-peak or clipping detector. **inside / outside** is for using your own reverb (section 7).
 
+**wear** (in the texture's header) erodes the sounds wherever they play. Each pass over a stretch takes away a little of its highs, adds a little hiss and rounds its peaks, and now and then leaves a hole that gets deeper every time. It adds up and never comes back. When you raise it, every sound the piece uses becomes the piece's own copy, saved in Music/Grain Field/Worn and kept with the project; the original sounds are never touched. To start fresh, pick the original sound again.
+
+**voice** (in the drones' header) sets what the drones are made of. On the left are strings that ring in tune, excited by the sound. On the right is the drones' own sound, held and laid on every note of the chord: its colour stays and its partials move to each note. A glass sound gives glass drones, a choir gives choir drones, and wind sings the chord.
+
 **arrive**, the segment bar above the knobs, brings the piece in from silence. At 0 nothing sounds. Raising it brings the layers in one after another: first the bed, then the texture as a few grains that fill in, then the drones (which grow as they arrive), then the sub, and the room opens last. At 100% everything is as you set it. It isn't stored in scenes. Draw it on an automation lane (the parameter is called *Arrive*) for a fade-in, or pull it down for a fade-out in reverse order.
 
 ### Everywhere

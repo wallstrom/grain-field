@@ -38,6 +38,7 @@ static const Spec specs[numP] = {
     { "dr_level",   "Drones level", Kind::Float, 0, 1,   0.75f, Curve::Lin, false, "How loud the drones are" },
     { "dr_tape",    "Tape",     Kind::Float, 0,    1,    0.2f,  Curve::Lin, false, "The drones' own tape: a slow waver, lost highs, small dropouts" },
     { "dr_space",   "Space",    Kind::Float, 0,    1,    0.5f,  Curve::Lin, false, "How far back in the room the drones sit. Swell raises it" },
+    { "dr_voice",   "Voice",    Kind::Float, 0,    1,    0.7f,  Curve::Lin, false, "What the drones are made of: on the left, strings that ring in tune; on the right, the drones' own sound, held and sung on every note of the chord" },
     { "dr_note",    "Drones note", Kind::Choice, 0, 4,   0,     Curve::Lin, true,  "Where the drones play, counted from the root: on it, a fifth or a fourth above, or an octave up or down" },
     { "bed_note",   "Bed note",    Kind::Choice, 0, 5,   0,     Curve::Lin, true,  "Where the bed plays, counted from the root, or its own pitch, left as recorded" },
 
@@ -252,6 +253,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
     other->addChild (std::make_unique<AudioParameterFloat> (ParameterID { ids::tempo, 1 }, "Tempo", NormalisableRange<float> (40.0f, 180.0f, 1.0f), 80.0f,
                                                             AudioParameterFloatAttributes().withStringFromValueFunction ([] (float v, int) { return String (roundToInt (v)) + " bpm"; })));
     other->addChild (std::make_unique<AudioParameterFloat> (ParameterID { ids::volume, 1 }, "Volume", NormalisableRange<float> (0.0f, 1.0f), 0.75f,
+                                                            AudioParameterFloatAttributes().withStringFromValueFunction ([] (float v, int) { return String (roundToInt (v * 100.0f)) + "%"; })));
+    // Wear: the sounds erode wherever they're played, for good. Not stored in scenes.
+    other->addChild (std::make_unique<AudioParameterFloat> (ParameterID { ids::wear, 1 }, "Wear", NormalisableRange<float> (0.0f, 1.0f), 0.0f,
                                                             AudioParameterFloatAttributes().withStringFromValueFunction ([] (float v, int) { return String (roundToInt (v * 100.0f)) + "%"; })));
     // Arrive: one line from silence to everything, the layers coming in one after another. Not stored in scenes.
     other->addChild (std::make_unique<AudioParameterFloat> (ParameterID { ids::arrive, 1 }, "Arrive", NormalisableRange<float> (0.0f, 1.0f), 1.0f,
