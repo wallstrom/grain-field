@@ -4,9 +4,9 @@
 
 A generative ambient instrument for macOS: granular textures, evolving drones, and layered harmony, shaped into pieces over time. No MIDI keyboard required.
 
-**Version 0.8.0** · Audio Unit · VST3 · Standalone · Apple silicon + Intel
+**Version 0.8.1** · Audio Unit · VST3 · Standalone · Apple silicon + Intel
 
-Download the [v0.8.0 release](https://github.com/wallstrom/grain-field/releases/tag/v0.8.0) for the OLED interface redesign and usability fixes. The macOS ZIP includes the Audio Unit, VST3, and standalone app.
+Download the [v0.8.1 release](https://github.com/wallstrom/grain-field/releases/tag/v0.8.1): chord changes that release and swell, an Arrive fade-in, drones made of the sound itself (Voice), and irreversible Wear. The macOS ZIP includes the Audio Unit, VST3, and standalone app.
 
 Experimental build for evaluation: Developer ID signing/notarization and real DAW integration remain unverified. Back up projects before testing; this is not a production-ready release.
 
@@ -26,8 +26,8 @@ Requires **macOS 11 or later** on Apple silicon or Intel. Developer tools are on
 
 ### Install a downloaded build
 
-1. Download `Grain-Field-v0.8.0-macOS-universal.zip` from the [v0.8.0 release](https://github.com/wallstrom/grain-field/releases/tag/v0.8.0). Choose the plugin ZIP under **Assets**, not GitHub's source-code archives.
-2. From the download folder, run `shasum -a 256 "Grain-Field-v0.8.0-macOS-universal.zip"` and compare the result with the SHA-256 in the release notes. If it matches, extract the ZIP. Quit your DAW and back up existing plugin copies before replacing them.
+1. Download `Grain-Field-v0.8.1-macOS-universal.zip` from the [v0.8.1 release](https://github.com/wallstrom/grain-field/releases/tag/v0.8.1). Choose the plugin ZIP under **Assets**, not GitHub's source-code archives.
+2. From the download folder, run `shasum -a 256 "Grain-Field-v0.8.1-macOS-universal.zip"` and compare the result with the SHA-256 in the release notes. If it matches, extract the ZIP. Quit your DAW and back up existing plugin copies before replacing them.
 3. In Finder, use **Go > Go to Folder** to open the destinations below; create the user folders if they do not exist. Copy each complete bundle, without renaming it:
    - **Audio Unit:** `Grain Field.component` → `~/Library/Audio/Plug-Ins/Components/`
    - **VST3:** `Grain Field.vst3` → `~/Library/Audio/Plug-Ins/VST3/`
@@ -64,6 +64,11 @@ For all controls, MIDI harmony, side-chain input, recording, and multi-output ro
 
 ## Status
 
+Release validation for **v0.8.1** on **2026-11-13**:
+
+- The offline render test (quick mode) passed on Linux x86_64, including new checks for Arrive, Voice and Wear. The UI was checked in a Linux snapshot.
+- The tagged macOS CI built and packaged the universal plugins. **v0.8.1 has not been run on a Mac or in a DAW yet**; the Apple silicon results below are from v0.8.0.
+
 Release validation for **v0.8.0** on **2026-11-11**:
 
 - **40 audio checks in full mode**, **22 synthetic UI checks**, and **10 Python build-tool regression tests** passed on Apple silicon.
@@ -92,9 +97,9 @@ Grain Field's original code is licensed under the GNU Affero General Public Lice
 
 ## Release status and known limitations
 
-Grain Field **v0.8.0 is published**, but remains experimental software intended for evaluation and feedback, not production use. Publishing a release does not imply Apple signing/notarization or verified DAW compatibility. Back up your projects and existing plugin installations before testing.
+Grain Field **v0.8.1 is published**, but remains experimental software intended for evaluation and feedback, not production use. Publishing a release does not imply Apple signing/notarization or verified DAW compatibility. Back up your projects and existing plugin installations before testing.
 
-### What has been verified
+### What has been verified (v0.8.0)
 
 - Native Apple silicon render and snapshot targets compiled for version 0.8.0 with JUCE 8.0.15.
 - The full audio suite passed 40 checks, including scene persistence, DAW scene automation, and transport sync in the offline harness.
@@ -113,7 +118,7 @@ Local test execution was on Apple silicon. Intel runtime behavior and real DAW i
 
 ### Before installing
 
-Download from the [official v0.8.0 release](https://github.com/wallstrom/grain-field/releases/tag/v0.8.0), compare the ZIP's SHA-256 with the release notes, and read the [installation instructions above](#install-a-downloaded-build) and [macOS security guidance](docs/USER_GUIDE.md#macos-security-warnings). A matching checksum confirms file integrity, not software safety.
+Download from the [official v0.8.1 release](https://github.com/wallstrom/grain-field/releases/tag/v0.8.1), compare the ZIP's SHA-256 with the release notes, and read the [installation instructions above](#install-a-downloaded-build) and [macOS security guidance](docs/USER_GUIDE.md#macos-security-warnings). A matching checksum confirms file integrity, not software safety.
 
 Do not disable Gatekeeper or lower your Mac's startup security to load the plugin.
 

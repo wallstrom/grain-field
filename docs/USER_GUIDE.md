@@ -1,8 +1,8 @@
 # Grain Field User Guide
 
-Version 0.8.0. [Back to the README](../README.md).
+Version 0.8.1. [Back to the README](../README.md).
 
-The [published v0.8.0 release](https://github.com/wallstrom/grain-field/releases/tag/v0.8.0) includes universal macOS AU, VST3, and standalone bundles. For downloaded-build installation and verification, see section 10; section 1 covers building from source.
+The [published v0.8.1 release](https://github.com/wallstrom/grain-field/releases/tag/v0.8.1) includes universal macOS AU, VST3, and standalone bundles. For downloaded-build installation and verification, see section 10; section 1 covers building from source.
 
 This experimental build is for evaluation, not production use. Developer ID signing/notarization and real DAW integration remain unverified. Back up projects and existing plugin copies before testing.
 
