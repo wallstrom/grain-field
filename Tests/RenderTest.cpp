@@ -461,6 +461,120 @@ int main (int argc, char** argv)
                juce::String::formatted ("level before %.3f, lowest during %.3f, old and new sound together: %s", beforeRms, lowest, sawBoth ? "yes" : "no"));
     }
 
+    // 8g2. Arrive: from silence, the layers come in one after another. Drones alone stay silent while the
+    // texture is already arriving, and everything is there at the top.
+    {
+        auto layer = [&] (bool drones, float arriveAt)
+        {
+            GrainFieldProcessor ap;
+            stereoOnly (ap);
+            ap.prepareToPlay (sr, block);
+            setP (ap, drGrow, 0.9f); setP (ap, pSwell, 0.6f); setP (ap, drBed, 0.0f);
+            setP (ap, drones ? txLevel : drLevel, 0.0f);
+            setP (ap, ids::arrive, arriveAt);
+            render (ap, 20.0, cpu);
+            return measure (render (ap, 2.0, cpu)).rms;
+        };
+        const float silent = layer (false, 0.0f), txEarly = layer (false, 0.35f), drEarly = layer (true, 0.25f);
+        const float txFull = layer (false, 1.0f), drFull = layer (true, 1.0f);
+        {
+            // A fade-in from silence over 40 seconds, for listening.
+            GrainFieldProcessor ap;
+            stereoOnly (ap);
+            ap.prepareToPlay (sr, block);
+            setP (ap, pSwell, 0.55f); setP (ap, ids::arrive, 0.0f);
+            render (ap, 1.0, cpu);
+            juce::AudioBuffer<float> sweep (2, (int) (48.0 * sr));
+            for (int k = 0; k < 96; ++k)
+            {
+                setP (ap, ids::arrive, juce::jmin (1.0f, (float) k / 80.0f));
+                auto win = render (ap, 0.5, cpu);
+                for (int c = 0; c < 2; ++c) sweep.copyFrom (c, (int) (k * 0.5 * sr), win, c, 0, win.getNumSamples());
+            }
+            writeWav (sweep, sr, outDir.getChildFile ("test_arrive.wav"));
+        }
+        check ("Arrive: layers come in one after another", silent < 1.0e-4f && txEarly > txFull * 0.1f && drEarly < drFull * 0.02f && drFull > 0.01f,
+               juce::String::formatted ("at 0: %.5f | at 35%% texture %.4f of %.4f | at 25%% drones %.5f of %.4f", silent, txEarly, txFull, drEarly, drFull));
+    }
+
+    // 8g3. Voice: the drones made of their own sound. At either end the drones are about as loud, and
+    // different sounds give different drones.
+    {
+        auto drones = [&] (const char* sound, float voice, const char* wav)
+        {
+            GrainFieldProcessor vp;
+            stereoOnly (vp);
+            vp.prepareToPlay (sr, block);
+            setP (vp, drGrow, 0.9f); setP (vp, pSwell, 0.6f); setP (vp, drBed, 0.0f); setP (vp, txLevel, 0.0f); setP (vp, txFeed, 0.0f);
+            setP (vp, drVoice, voice);
+            vp.setSlotSourceId (slotTone, sound);
+            render (vp, 20.0, cpu);
+            auto b = render (vp, 6.0, cpu);
+            if (wav != nullptr) writeWav (b, sr, outDir.getChildFile (wav));
+            return measure (b).rms;
+        };
+        const float strings = drones ("glasshaze", 0.0f, "test_voice_strings_glasshaze.wav");
+        const float glass = drones ("glasshaze", 1.0f, "test_voice_glasshaze.wav");
+        const float choir = drones ("tapechoir", 1.0f, "test_voice_tapechoir.wav");
+        const float wind = drones ("wind", 1.0f, "test_voice_wind.wav");
+        drones ("bowedair", 1.0f, "test_voice_bowedair.wav");
+        drones ("lowhum", 1.0f, "test_voice_lowhum.wav");
+        const float ratio = glass / juce::jmax (1.0e-6f, strings);
+        check ("Voice: drones made of their own sound", ratio > 0.5f && ratio < 2.0f && choir > 0.01f && wind > 0.01f,
+               juce::String::formatted ("strings %.4f, glass %.4f (x%.2f), choir %.4f, wind %.4f", strings, glass, ratio, choir, wind));
+    }
+
+    // 8g4. Wear: the sounds become the piece's own copies, which erode as they play. The originals stay.
+    {
+        GrainFieldProcessor wp;
+        stereoOnly (wp);
+        wp.prepareToPlay (sr, block);
+        wp.setSlotSourceId (0, "glasshaze"); wp.setSlotSourceId (1, "none"); wp.setSlotSourceId (2, "none");
+        setP (wp, txDensity, 8.0f); setP (wp, txLength, 3.0f);
+        auto original = wp.library.find ("glasshaze");
+        auto air = [] (const juce::AudioBuffer<float>& b)   // how much is in a sound's highs
+        {
+            double d = 0;
+            const float* x = b.getReadPointer (0);
+            for (int i = 1; i < b.getNumSamples(); ++i) d += (double) (x[i] - x[i - 1]) * (x[i] - x[i - 1]);
+            return (float) d;
+        };
+        const juce::AudioBuffer<float> before (original->audio);
+        const float airBefore = air (before);
+        setP (wp, ids::wear, 1.0f);
+        pump (100);
+        const juce::String id = wp.getSlotSourceId (0);
+        auto worn = wp.library.find (id);
+        render (wp, 90.0, cpu);
+        pump (50);
+        const bool own = worn != nullptr && worn->worn && worn.get() != original.get();
+        const float airAfter = own ? air (worn->audio) : airBefore;
+        bool untouched = true;
+        for (int i = 0; i < before.getNumSamples(); i += 97) untouched = untouched && before.getSample (0, i) == original->audio.getSample (0, i);
+        // Saved with the piece: the file holds the eroded sound.
+        juce::MemoryBlock state;
+        wp.getStateInformation (state);
+        GrainFieldProcessor back;
+        back.setStateInformation (state.getData(), (int) state.getSize());
+        auto reloaded = back.library.find (back.getSlotSourceId (0));
+        const float airReloaded = reloaded != nullptr ? air (reloaded->audio) : 0.0f;
+        check ("Wear erodes the piece's own copy, for good", own && untouched && airAfter < airBefore * 0.95f && reloaded != nullptr && reloaded->worn
+                   && std::abs (airReloaded - airAfter) < airAfter * 0.02f,
+               juce::String::formatted ("highs %.1f -> %.1f, original untouched: %s, reopened with the wear: %.1f", airBefore, airAfter, untouched ? "yes" : "no", airReloaded)
+                   + " | " + id.fromLastOccurrenceOf ("/", false, false));
+        {
+            // For listening: the texture as it starts wearing, then after three more minutes of it.
+            juce::AudioBuffer<float> both (2, (int) (31.0 * sr));
+            both.clear();
+            auto early = render (wp, 15.0, cpu);
+            render (wp, 180.0, cpu);
+            auto late = render (wp, 15.0, cpu);
+            for (int c = 0; c < 2; ++c) { both.copyFrom (c, 0, early, c, 0, early.getNumSamples()); both.copyFrom (c, (int) (16.0 * sr), late, c, 0, late.getNumSamples()); }
+            writeWav (both, sr, outDir.getChildFile ("test_wear.wav"));
+        }
+        if (id.startsWith ("file:")) juce::File (id.fromFirstOccurrenceOf ("file:", false, false)).deleteFile();
+    }
+
     // 8h. Registers: the same chord an octave up, and the notes a slot shows.
     {
         GrainFieldProcessor rp;

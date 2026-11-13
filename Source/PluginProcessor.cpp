@@ -212,6 +212,57 @@ juce::String GrainFieldProcessor::partLabel (int index) const
 
 SourceData::Ptr GrainFieldProcessor::resolveSource (const juce::String& id, int slot)
 {
+    auto s = resolveUnworn (id, slot);
+    return wearOn() ? wornCopyOf (s) : s;
+}
+
+SourceData::Ptr GrainFieldProcessor::wornCopyOf (SourceData::Ptr s)
+{
+    if (s == nullptr || s->worn || s->live) return s;
+    auto& copy = wornCopies[s->id];
+    if (copy == nullptr) copy = library.addWorn (*s);
+    return copy;
+}
+
+void GrainFieldProcessor::wearEverything()
+{
+    // Every sound in use, now and in the scenes, becomes this piece's own copy. The originals stay as they are.
+    juce::StringArray names;
+    for (int k = 0; k < numSlots; ++k)
+    {
+        if (sourceIds[(size_t) k] == "none") continue;
+        auto s = resolveUnworn (sourceIds[(size_t) k], k);
+        if (s == nullptr || s->worn || s->live) continue;
+        auto w = wornCopyOf (s);
+        names.addIfNotAlreadyThere (s->name);
+        sourceIds[(size_t) k] = w->id;
+        engine.setSlotSource (k, w.get());
+    }
+    for (auto& slot : scenes.slots)
+        for (auto& id : slot.src)
+            if (id.isNotEmpty() && id != "none")
+                if (auto s = resolveUnworn (id, 0); s != nullptr && ! s->worn && ! s->live)
+                    id = wornCopyOf (s)->id;
+    if (! names.isEmpty())
+        setStatus ("Wear: " + names.joinIntoString (", ") + (names.size() == 1 ? " is" : " are")
+                   + " now this piece's own, and will erode wherever it plays. The originals are untouched.");
+    sendChangeMessage();
+}
+
+void GrainFieldProcessor::keepWear (bool all)
+{
+    const juce::ScopedLock sl (wornLock);
+    for (auto& s : library.getLoaded())
+        if (s->worn && s->wornChanged.exchange (false))
+        {
+            SourceLibrary::computePeaks (*s);
+            if (all) SourceLibrary::saveWorn (*s);
+            else s->wornChanged.store (true);   // the file still needs it
+        }
+}
+
+SourceData::Ptr GrainFieldProcessor::resolveUnworn (const juce::String& id, int slot)
+{
     if (id == "none") return nullptr;
     // A sound comes back with the note you gave it.
     auto withRoot = [this] (SourceData::Ptr s)
@@ -829,6 +880,13 @@ void GrainFieldProcessor::pieceFromTree (const juce::ValueTree& root)
 
 void GrainFieldProcessor::timerCallback()
 {
+    // Wear: turning it up makes every sound in use this piece's own; the pictures follow the erosion,
+    // and every so often the worn sounds are written back to their files.
+    const bool wearing = wearOn();
+    if (wearing && ! woreBefore) wearEverything();
+    woreBefore = wearing;
+    if (++wornTicks % 30 == 0) keepWear (wornTicks % 600 == 0);
+
     // A part was recalled on the audio thread (by Move on, or by automation of the Part control):
     // write its values back so the knobs, the host and saved projects agree with what you hear.
     const int rc = engine.getRecallCount();
@@ -906,6 +964,7 @@ void GrainFieldProcessor::timerCallback()
 
 void GrainFieldProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
+    keepWear (true);   // the worn sounds are saved as they are now, with the piece
     if (auto xml = pieceToTree().createXml())
         copyXmlToBinary (*xml, destData);
 }

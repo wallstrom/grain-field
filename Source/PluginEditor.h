@@ -57,7 +57,7 @@ private:
     gf::ui::PlayButton play;
     gf::ui::TextToggle sync, freeze;
     gf::ui::SpaceModeSwitch spaceMode;
-    gf::ui::HairSlider textureLevel, dronesLevel;
+    gf::ui::HairSlider textureLevel, dronesLevel, arrive, wear, voice;
     gf::ui::Knob volume;
     gf::ui::TakeChip take;
     gf::ui::TextAction prevPreset, nextPreset, presetName, resample, blendTime, doneEditing, sizeButton, rootButton, rootNote, textureNote, clock, loopButton, tempoButton, fadeTime, record;
