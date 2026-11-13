@@ -13,20 +13,19 @@
 
 ## macOS download
 
-The intended release asset is `Grain-Field-v0.8.1-macOS-universal.zip`, containing AU, VST3, and standalone bundles for Apple silicon and Intel Macs running macOS 11 or later, together with the license and notices.
+The release asset is `Grain-Field-v0.8.1-macOS-universal.zip`, containing AU, VST3, and standalone bundles for Apple silicon and Intel Macs running macOS 11 or later, together with the license and notices.
 
 Developer ID signing and notarization are not verified. A successful CI build does not establish DAW compatibility. See the [installation and security guidance](https://github.com/wallstrom/grain-field/blob/main/docs/USER_GUIDE.md#10-build-in-the-cloud-instead-optional) before installing.
 
-## Validation status — draft, not ready to publish
+## Validation
 
 - Linux testing was reported for the functional changes.
-- The earlier successful macOS build at commit `a9c38619e1ec4a57ea497f71b4afa36f8f6bfc12` embeds version 0.8.0 and must not be used as the v0.8.1 release asset.
-- Build a fresh macOS artifact after the version bump and verify that its bundles report 0.8.1.
-- Test that artifact in Logic Pro or Ableton Live before publishing. No macOS host smoke test has been completed in this session.
-- Replace the pending checksum below with the SHA-256 of the final release ZIP and update this validation section with actual results before publishing.
+- The [macOS build](https://github.com/wallstrom/grain-field/actions/runs/43411865836) passed for commit `04490eeb2516aba8e7029a245739d1bf2c55bfae`.
+- The release ZIP passed its integrity check, and the AU, VST3, and standalone bundles all report version 0.8.1.
+- The downloaded 0.8.1 build passed smoke tests in both Logic Pro and Ableton Live, as reported by the maintainer. These checks do not establish comprehensive DAW compatibility.
 
 ## SHA-256
 
 Asset: `Grain-Field-v0.8.1-macOS-universal.zip`
 
-SHA-256: **Pending — compute from the final 0.8.1 release ZIP before publishing.**
+SHA-256: `c1be4c765bf9a34f9dbe11198a7b074051d919bf972049ec86693a860237bde6`
