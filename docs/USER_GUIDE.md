@@ -80,6 +80,8 @@ A slow body holding the chord.
 
 The narrow strip between texture and drones: what happens to everything on its way out. **drive** (saturation, up to distortion), **echo** (a tape echo on the texture, in time), **room** (how big the room is that both modules are sent into, from small to vast) and **volume**. In the picture, the core is how loud it is and grows a halo with drive, the square rings are the room, the squares rising off are the echo, and the grains crossing over show how much the texture and drones are merging. The **RMS** meter on the right uses a -60 to 0 dBFS scale, with a short hold of the highest RMS reading. Its red zone starts at -1 dBFS RMS; it is not a sample-peak or clipping detector. **inside / outside** is for using your own reverb (section 7).
 
+**arrive**, the segment bar above the knobs, brings the piece in from silence. At 0 nothing sounds. Raising it brings the layers in one after another: first the bed, then the texture as a few grains that fill in, then the drones (which grow as they arrive), then the sub, and the room opens last. At 100% everything is as you set it. It isn't stored in scenes. Draw it on an automation lane (the parameter is called *Arrive*) for a fade-in, or pull it down for a fade-out in reverse order.
+
 ### Everywhere
 
 **solo** and **mute** sit next to texture, drones and the bed. Solo one to hear only what it makes. Grainy movement comes from the texture, the slow wall from the drones, the room tone from the bed. Crackle comes from **detail** and from **tape**.
@@ -155,7 +157,7 @@ Eight slots, in their own row under the transport. The texture and drones are tu
 - The chord you played shows in the harmony header as **keys**, and holds after you lift your hands. **keep** makes it a slot of its own, so playing the keyboard is also a way to find a progression. **let go** returns to the lit slot. It also lets go when the loop moves on, when you pick a slot, or when you change scene.
 - Record the MIDI on Grain Field's track and your DAW plays the harmony back for you.
 
-Nothing ever slides in pitch. When a chord or the root changes, each voice's new note comes up beside its old one, which keeps ringing as it fades: a true crossfade, one voice after another, and the texture's tuning crosses over the same way. Notes two chords share simply keep sounding.
+Nothing ever slides in pitch. When a chord or the root changes, the old notes are **let go**: nothing feeds them any more and they ring out on their own tails, while the new notes **swell up** from silence beside them. The old chord is released almost as one, the new notes arrive a moment apart, and the texture's tuning crosses over the same way. Notes two chords share simply keep sounding. **dissolve** sets how long this takes.
 
 **Whatever sound you add follows where its layer plays.** A sound with a clear note of its own (its note is shown by the name) is moved by the smallest step to fit; this includes the bed. A sound with no clear note is tuned by the chord's filter. A sound set to its **own** pitch is left exactly as recorded.
 

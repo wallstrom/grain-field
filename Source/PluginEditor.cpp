@@ -15,7 +15,7 @@ GrainFieldEditor::GrainFieldEditor (GrainFieldProcessor& p)
       texturePicture (p), dronesPicture (p), outputPicture (p), swell (p), play (p),
       sync (p, ids::sync, "sync", false), freeze (p, ids::freeze, "freeze", true),
       spaceMode (p),
-      textureLevel (p, txLevel, "level"), dronesLevel (p, drLevel, "level"), volume (p, ids::volume, "volume"), take (p),
+      textureLevel (p, txLevel, "level"), dronesLevel (p, drLevel, "level"), arrive (p, ids::arrive, "arrive"), volume (p, ids::volume, "volume"), take (p),
       textureStage (p, gf::Engine::stTexture, "texture", false), dronesStage (p, gf::Engine::stDrones, "drones", false),
       bedStage (p, gf::Engine::stBed, "", true)
 {
@@ -91,6 +91,7 @@ GrainFieldEditor::GrainFieldEditor (GrainFieldProcessor& p)
     setHint (freeze, "freeze", "Hold the texture where it is. The drones keep breathing");
     setHint (textureLevel, "texture level", "How loud the texture is");
     setHint (dronesLevel, "drones level", "How loud the drones are");
+    setHint (arrive, "arrive", "From silence to everything: the bed comes in first, then a few grains, the drones, the sub, and the room opens last. Automate it for a fade-in");
     setHint (volume, "volume", "How loud Grain Field is. The last thing before it leaves");
     setHint (bedStage, "bed", "Solo to hear only the bed underneath, mute to take it out");
     for (auto* c : std::initializer_list<juce::Component*> { &rootButton, &prevPreset, &presetName, &nextPreset, &sizeButton })
@@ -201,7 +202,7 @@ GrainFieldEditor::GrainFieldEditor (GrainFieldProcessor& p)
     setHint (textureNote, "where the texture plays", "Counted from the root: on it, a fifth or a fourth above, or an octave up or down. All three sounds move with it, each keeping its own step; the drones and the bed stay");
     setHint (resample, "resample", "Records the last 8 seconds of everything you hear and adds it to the texture as a sound of its own, so the piece can feed on itself. It takes the first empty sound, or the one you use least");
     for (auto* c : std::initializer_list<juce::Component*> { &texturePicture, &dronesPicture, &outputPicture, &textureSources, &droneSources,
-                                                              &textureLevel, &dronesLevel, &textureStage, &dronesStage, &bedStage, &resample, &spaceMode, &textureNote })
+                                                              &textureLevel, &dronesLevel, &arrive, &textureStage, &dronesStage, &bedStage, &resample, &spaceMode, &textureNote })
         canvas.addAndMakeVisible (c);
     knob (txDensity, "density"); knob (txLength, "length"); knob (txSmear, "smear"); knob (txReverse, "reverse");
     knob (txSpread, "spread"); knob (txDetail, "detail"); knob (txTape, "tape"); knob (txSpace, "space");
@@ -373,7 +374,8 @@ void GrainFieldEditor::layout()
     {
         const float x = xB + in, w = colB - 2.0f * in;
         spaceMode.setBounds (ri (x, rowY, w, rowH));
-        outputPicture.setBounds (ri (x, yPic, w, yKnobs - 8.0f - yPic));
+        outputPicture.setBounds (ri (x, yPic, w, yKnobs - 16.0f - rowH - yPic));
+        arrive.setBounds (ri (x, yKnobs - 8.0f - rowH, w, rowH));
         placeKnobs (18, 4, 2, x, w, yKnobs);
         grids[1] = { x, yKnobs, w, knobsH };
     }
@@ -636,6 +638,7 @@ void GrainFieldEditor::timerCallback()
     volume.tick();
     textureLevel.tick();
     dronesLevel.tick();
+    arrive.tick();
     swell.tick();
     sync.tick();
     freeze.tick();

@@ -29,6 +29,12 @@ inline float lookup (const std::array<float, N>& t, float p)
 inline float midiToHz (float m) { return 440.0f * std::pow (2.0f, (m - 69.0f) / 12.0f); }
 inline float clamp01 (float x) { return juce::jlimit (0.0f, 1.0f, x); }
 
+// A change of note: the new one swells up, slowly at first; the old one is let go, quickly at first and
+// then with a long tail. The two curves are not mirror images, so the change sounds like one chord ending
+// and the next one arriving rather than one sound morphing into another.
+inline float swellIn (float x) { return std::sin (x * juce::MathConstants<float>::halfPi); }
+inline float letGo (float x)   { const float r = 1.0f - x; return r * std::sqrt (r); }
+
 inline float combTick (std::vector<float>& buf, int& w, float& lp, float delay, float in, float g, float a)
 {
     const int n = (int) buf.size();
@@ -67,6 +73,9 @@ Engine::Engine (juce::AudioProcessorValueTreeState& state) : apvts (state)
     rawFreeze = apvts.getRawParameterValue (ids::freeze);
     rawHold = apvts.getRawParameterValue (ids::hold);
     rawTempo = apvts.getRawParameterValue (ids::tempo);
+    rawArrive = apvts.getRawParameterValue (ids::arrive);
+    arrive = rawArrive->load();
+    updateArrive (1.0e3f);
     for (auto& b : partBlendA) b.store (-1.0f);
     for (auto& x : voiceXPub) x.store (1.0f);
     lastSceneParam = juce::roundToInt (rawPart->load());
@@ -313,6 +322,24 @@ void Engine::updateSwell()
     frozen = rawFreeze->load() > 0.5f;
 }
 
+void Engine::updateArrive (float dt)
+{
+    // Follow the control with a short lag, so a jump in it is still a fade.
+    arrive += (rawArrive->load() - arrive) * (1.0f - std::exp (-dt / 0.4f));
+    auto stage = [a = arrive] (float from, float to)
+    {
+        const float x = clamp01 ((a - from) / (to - from));
+        return x * x * (3.0f - 2.0f * x);
+    };
+    arrOpen    = stage (0.00f, 0.04f);                    // at nothing it is silent: no tape hiss either
+    arrBed     = stage (0.00f, 0.30f);
+    arrTexture = stage (0.10f, 0.45f);
+    arrGrains  = 0.08f + 0.92f * stage (0.10f, 0.65f);   // the texture starts as a few grains and fills in
+    arrDrones  = stage (0.30f, 0.75f);
+    arrSub     = stage (0.55f, 0.85f);
+    arrRoom    = 0.35f + 0.65f * stage (0.45f, 1.00f);   // close at first; the room opens last
+}
+
 /* ---------------- Harmony ---------------- */
 
 float Engine::snapToChord (float midi, int pcOff) const
@@ -404,9 +431,9 @@ void Engine::setChord (int newRoot, int type, int oct, bool jump)
 
 void Engine::retargetVoices (bool jump)
 {
-    // Every voice that has a new note crossfades to it. They start a moment apart, so the chord turns over
-    // like a slow tide rather than a switch; notes the two chords share simply keep sounding.
-    const float spreadOut = 0.2f * cur (hmDissolve);
+    // Every voice that has a new note lets the old one go and swells up on the new one. They start only a
+    // moment apart, so the old chord is released as one gesture; notes the two chords share keep sounding.
+    const float spreadOut = 0.08f * cur (hmDissolve);
     for (int i = 0; i < numVoices; ++i)
     {
         auto& V = voices[(size_t) i];
@@ -944,7 +971,7 @@ void Engine::scheduleTexture (int numSamples, float dt)
     while (nextCloudIn < numSamples && guard++ < 16)
     {
         spawnCloud ((int) juce::jmax (0.0, nextCloudIn));
-        nextCloudIn += juce::jmax (1.0, (0.4 + 1.2 * rng.nextFloat()) / densityEff * sr);
+        nextCloudIn += juce::jmax (1.0, (0.4 + 1.2 * rng.nextFloat()) / (densityEff * arrGrains) * sr);
     }
     nextCloudIn -= numSamples;
 
@@ -1375,6 +1402,7 @@ void Engine::process (const Outputs& out, int numSamples, juce::AudioPlayHead* p
         const float dt = (float) m / (float) sr;
         updateControl (m);
         updateSwell();
+        updateArrive (dt);
         if (running) { runSeconds += dt; partElapsed += dt; }
         updateHarmony (dt, hostPlaying, havePpq, ppq + (off / sr) * bpm / 60.0, barLength);
 
@@ -1382,7 +1410,7 @@ void Engine::process (const Outputs& out, int numSamples, juce::AudioPlayHead* p
         if (! frozen && running)
         {
             const float tau = 600.0f * std::pow (3.0f / 600.0f, cur (drGrow));
-            const float target = 0.12f + 0.88f * std::pow (swell, 0.8f);
+            const float target = (0.12f + 0.88f * std::pow (swell, 0.8f)) * (0.4f + 0.6f * arrDrones);
             mass += (target - mass) * (1.0f - std::exp (-dt / tau));
         }
 
@@ -1399,16 +1427,16 @@ void Engine::process (const Outputs& out, int numSamples, juce::AudioPlayHead* p
         for (auto& f : farTone) f.set (5200.0f - 2500.0f * (1.0f - swell), 0.6f, sr);
         for (auto& f : farToneRaw) f.set (5200.0f - 2500.0f * (1.0f - swell), 0.6f, sr);
         const float lift = 0.16f + 0.84f * std::pow (swell, 1.1f);  // the swell is also the loudness: quiet start, full wall
-        textureGain.setTargetValue (cur (txLevel) * cur (txLevel) * 1.6f * lift * (1.0f - 0.65f * merge * merge) * (isAudible (stTexture) ? 1.0f : 0.0f));
+        textureGain.setTargetValue (cur (txLevel) * cur (txLevel) * 1.6f * lift * (1.0f - 0.65f * merge * merge) * arrTexture * (isAudible (stTexture) ? 1.0f : 0.0f));
 
         const float breath = cur (drBreath);
         const float colourEff = clamp01 (cur (drColour) * (0.55f + 0.45f * mass) + 0.2f * swell);
         const float toneHz = colourCutoffHz (colourEff) * (0.6f + 0.4f * mass);
         for (auto& f : droneTone) f.set (toneHz, 0.7f, sr);
         for (auto& f : bedTone) f.set (colourCutoffHz (0.5f + 0.5f * cur (drColour)), 0.6f, sr);
-        dronesGain.setTargetValue (cur (drLevel) * cur (drLevel) * 1.4f * (0.35f + 0.65f * lift) * (1.0f + 0.3f * merge) * (isAudible (stDrones) ? 1.0f : 0.0f));
+        dronesGain.setTargetValue (cur (drLevel) * cur (drLevel) * 1.4f * (0.35f + 0.65f * lift) * (1.0f + 0.3f * merge) * arrDrones * (isAudible (stDrones) ? 1.0f : 0.0f));
         bedOn += ((isAudible (stBed) ? 1.0f : 0.0f) - bedOn) * 0.12f;
-        const float bedGain = cur (drBed) * (0.6f + 0.4f * swell) * 1.2f * bedOn * bedOn * (1.0f - 0.6f * merge * merge);
+        const float bedGain = cur (drBed) * (0.6f + 0.4f * swell) * 1.2f * bedOn * bedOn * (1.0f - 0.6f * merge * merge) * arrBed;
         const float bedToDrones = cur (drBed) * merge * 0.8f;
         const float fill = mass * (1.0f + bodyEff * 7.0f);
         const float lineAmt = cur (hmLine);
@@ -1425,7 +1453,7 @@ void Engine::process (const Outputs& out, int numSamples, juce::AudioPlayHead* p
             for (auto& set : tuned) for (auto& f : set) f.reset();
             retuneBank();
         }
-        const float tunedGN = tunedX < 1.0f ? std::sin (tunedX * pi * 0.5f) : 1.0f, tunedGO = tunedX < 1.0f ? std::cos (tunedX * pi * 0.5f) : 0.0f;
+        const float tunedGN = tunedX < 1.0f ? swellIn (tunedX) : 1.0f, tunedGO = tunedX < 1.0f ? letGo (tunedX) : 0.0f;
 
         for (int v = 0; v < numVoices; ++v)
         {
@@ -1435,7 +1463,8 @@ void Engine::process (const Outputs& out, int numSamples, juce::AudioPlayHead* p
             V.lfo = V.lfoA + (V.lfoB - V.lfoA) * (0.5f - 0.5f * std::cos (pi * V.lfoT));
             const bool isDrone = v < 3, isLine = v == lineVoice;
 
-            // A new note comes up beside the old one, which keeps ringing as it fades. Nothing slides in pitch.
+            // A change of note is a release and a swell, not a morph: the old note is no longer fed and rings
+            // out on its own tail, while the new one swells up from nothing beside it. Nothing slides in pitch.
             const float vTime = isLine ? dTime * 0.5f : dTime;
             const bool wantsNew = std::abs (V.targetHz / V.hz - 1.0f) > 0.002f;
             if (V.xfade < 1.0f) V.xfade = juce::jmin (1.0f, V.xfade + dt / vTime * (wantsNew ? 4.0f : 1.0f));   // a newer note is waiting: finish sooner
@@ -1451,8 +1480,8 @@ void Engine::process (const Outputs& out, int numSamples, juce::AudioPlayHead* p
                     V.xfade = V.amp < 1.0e-4f ? 1.0f : 0.0f;
                 }
             }
-            V.gNew = V.xfade < 1.0f ? std::sin (V.xfade * pi * 0.5f) : 1.0f;
-            V.gOld = V.xfade < 1.0f ? std::cos (V.xfade * pi * 0.5f) : 0.0f;
+            V.gNew = V.xfade < 1.0f ? swellIn (V.xfade) : 1.0f;
+            V.gOld = V.xfade < 1.0f ? letGo (V.xfade) : 0.0f;
 
             const float breathMod = 1.0f - breath * 0.6f * (0.5f + 0.5f * V.lfo);
             if (isLine) V.targetAmp = lineAmt * (0.25f + 0.75f * mass) * 0.9f * (1.0f - breath * 0.3f * (0.5f + 0.5f * V.lfo));
@@ -1476,8 +1505,8 @@ void Engine::process (const Outputs& out, int numSamples, juce::AudioPlayHead* p
             subHz = subTargetHz;
             subX = subAmp < 1.0e-4f ? 1.0f : 0.0f;
         }
-        const float subGN = subX < 1.0f ? std::sin (subX * pi * 0.5f) : 1.0f, subGO = subX < 1.0f ? std::cos (subX * pi * 0.5f) : 0.0f;
-        const float subTarget = subEff * mass * 0.32f;
+        const float subGN = subX < 1.0f ? swellIn (subX) : 1.0f, subGO = subX < 1.0f ? letGo (subX) : 0.0f;
+        const float subTarget = subEff * mass * 0.32f * arrSub;
         voiceAmpPub[subVoice].store (subAmp, std::memory_order_relaxed);
         voiceHzPub[subVoice].store (subHz, std::memory_order_relaxed);
         voiceTargetPub[subVoice].store (subTargetHz, std::memory_order_relaxed);
@@ -1552,8 +1581,9 @@ void Engine::process (const Outputs& out, int numSamples, juce::AudioPlayHead* p
                 float cR = combTick (V.comb[1].buf, V.comb[1].w, V.comb[1].lp, V.comb[1].delay, sR * inNew, g, a);
                 if (V.xfade < 1.0f)
                 {
-                    const float oL = combTick (V.old[0].buf, V.old[0].w, V.old[0].lp, V.old[0].delay, sL * in, g, a);
-                    const float oR = combTick (V.old[1].buf, V.old[1].w, V.old[1].lp, V.old[1].delay, sR * in, g, a);
+                    // The old note is let go: nothing feeds it any more, it only rings out.
+                    const float oL = combTick (V.old[0].buf, V.old[0].w, V.old[0].lp, V.old[0].delay, 0.0f, g, a);
+                    const float oR = combTick (V.old[1].buf, V.old[1].w, V.old[1].lp, V.old[1].delay, 0.0f, g, a);
                     cL = cL * V.gNew + oL * V.gOld;
                     cR = cR * V.gNew + oR * V.gOld;
                 }
@@ -1594,11 +1624,11 @@ void Engine::process (const Outputs& out, int numSamples, juce::AudioPlayHead* p
 
             // Each module keeps its own sound and its own share of the room; they meet after their tapes.
             textureOut.addSample (0, i, tl); textureOut.addSample (1, i, tr);
-            txSend.addSample (0, i, (nl * 0.2f + fl * 1.1f) * tg * txSpaceEff);
-            txSend.addSample (1, i, (nr * 0.2f + fr * 1.1f) * tg * txSpaceEff);
+            txSend.addSample (0, i, (nl * 0.2f + fl * 1.1f) * tg * txSpaceEff * arrRoom);
+            txSend.addSample (1, i, (nr * 0.2f + fr * 1.1f) * tg * txSpaceEff * arrRoom);
             dronesOut.addSample (0, i, dOutL); dronesOut.addSample (1, i, dOutR);
-            drSend.addSample (0, i, (ys[0] * dg * 0.6f + b0 * 0.35f) * drSpaceEff);
-            drSend.addSample (1, i, (ys[1] * dg * 0.6f + b1 * 0.35f) * drSpaceEff);
+            drSend.addSample (0, i, (ys[0] * dg * 0.6f + b0 * 0.35f) * drSpaceEff * arrRoom);
+            drSend.addSample (1, i, (ys[1] * dg * 0.6f + b1 * 0.35f) * drSpaceEff * arrRoom);
         }
         rateAcc += dt;
     }
@@ -1704,7 +1734,7 @@ void Engine::process (const Outputs& out, int numSamples, juce::AudioPlayHead* p
 
     // Master
     const float vol = rawVolume->load();
-    masterGain.setTargetValue (vol * vol * 1.4f);
+    masterGain.setTargetValue (vol * vol * 1.4f * arrOpen);
     float pow2 = 0.0f;
     for (int s = 0; s < numSamples; ++s)
     {

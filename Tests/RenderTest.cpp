@@ -461,6 +461,42 @@ int main (int argc, char** argv)
                juce::String::formatted ("level before %.3f, lowest during %.3f, old and new sound together: %s", beforeRms, lowest, sawBoth ? "yes" : "no"));
     }
 
+    // 8g2. Arrive: from silence, the layers come in one after another. Drones alone stay silent while the
+    // texture is already arriving, and everything is there at the top.
+    {
+        auto layer = [&] (bool drones, float arriveAt)
+        {
+            GrainFieldProcessor ap;
+            stereoOnly (ap);
+            ap.prepareToPlay (sr, block);
+            setP (ap, drGrow, 0.9f); setP (ap, pSwell, 0.6f); setP (ap, drBed, 0.0f);
+            setP (ap, drones ? txLevel : drLevel, 0.0f);
+            setP (ap, ids::arrive, arriveAt);
+            render (ap, 20.0, cpu);
+            return measure (render (ap, 2.0, cpu)).rms;
+        };
+        const float silent = layer (false, 0.0f), txEarly = layer (false, 0.35f), drEarly = layer (true, 0.25f);
+        const float txFull = layer (false, 1.0f), drFull = layer (true, 1.0f);
+        {
+            // A fade-in from silence over 40 seconds, for listening.
+            GrainFieldProcessor ap;
+            stereoOnly (ap);
+            ap.prepareToPlay (sr, block);
+            setP (ap, pSwell, 0.55f); setP (ap, ids::arrive, 0.0f);
+            render (ap, 1.0, cpu);
+            juce::AudioBuffer<float> sweep (2, (int) (48.0 * sr));
+            for (int k = 0; k < 96; ++k)
+            {
+                setP (ap, ids::arrive, juce::jmin (1.0f, (float) k / 80.0f));
+                auto win = render (ap, 0.5, cpu);
+                for (int c = 0; c < 2; ++c) sweep.copyFrom (c, (int) (k * 0.5 * sr), win, c, 0, win.getNumSamples());
+            }
+            writeWav (sweep, sr, outDir.getChildFile ("test_arrive.wav"));
+        }
+        check ("Arrive: layers come in one after another", silent < 1.0e-4f && txEarly > txFull * 0.1f && drEarly < drFull * 0.02f && drFull > 0.01f,
+               juce::String::formatted ("at 0: %.5f | at 35%% texture %.4f of %.4f | at 25%% drones %.5f of %.4f", silent, txEarly, txFull, drEarly, drFull));
+    }
+
     // 8h. Registers: the same chord an octave up, and the notes a slot shows.
     {
         GrainFieldProcessor rp;

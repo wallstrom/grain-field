@@ -59,7 +59,7 @@ bool swellMoves (int p);
 namespace ids
 {
     inline const juce::String volume = "volume", part = "part", blend = "blend", play = "play",
-                              sync = "sync", spaceMode = "spacemode", freeze = "freeze", hold = "hold", tempo = "tempo";
+                              sync = "sync", arrive = "arrive", spaceMode = "spacemode", freeze = "freeze", hold = "hold", tempo = "tempo";
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout createLayout();

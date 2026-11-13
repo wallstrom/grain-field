@@ -253,6 +253,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
                                                             AudioParameterFloatAttributes().withStringFromValueFunction ([] (float v, int) { return String (roundToInt (v)) + " bpm"; })));
     other->addChild (std::make_unique<AudioParameterFloat> (ParameterID { ids::volume, 1 }, "Volume", NormalisableRange<float> (0.0f, 1.0f), 0.75f,
                                                             AudioParameterFloatAttributes().withStringFromValueFunction ([] (float v, int) { return String (roundToInt (v * 100.0f)) + "%"; })));
+    // Arrive: one line from silence to everything, the layers coming in one after another. Not stored in scenes.
+    other->addChild (std::make_unique<AudioParameterFloat> (ParameterID { ids::arrive, 1 }, "Arrive", NormalisableRange<float> (0.0f, 1.0f), 1.0f,
+                                                            AudioParameterFloatAttributes().withStringFromValueFunction ([] (float v, int) { return String (roundToInt (v * 100.0f)) + "%"; })));
     other->addChild (std::make_unique<AudioParameterInt> (ParameterID { ids::part, 1 }, "Scene", 0, numScenes, 1,
                                                           AudioParameterIntAttributes().withStringFromValueFunction ([] (int v, int) { return v == 0 ? String ("None") : String (v); })));
     other->addChild (std::make_unique<AudioParameterFloat> (ParameterID { ids::blend, 1 }, "Blend time",
